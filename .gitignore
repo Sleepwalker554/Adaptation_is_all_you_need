@@ -1,0 +1,53 @@
+# Data files
+extract_patient_speech/Data_*/
+extract_patient_speech/*/Data_*/
+*.wav
+*.mp3
+
+# Model files
+*.pt
+*.pth
+*.ckpt
+
+# Logs and checkpoints
+*.log
+logs/
+lightning_logs/
+**/lightning_logs/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.bak
+*~
+
+# CSV files (data files only, not config CSVs)
+extract_patient_speech/**/*.csv
+ad_detection/data/**/*.csv
+
+# ad_detection specific rules
+ad_detection/data/raw/
+ad_detection/data/processed/
+# Allow CSV files in ad_detection/data/processed/ (they are config files)
+!ad_detection/data/processed/*.csv
+
+ad_detection/models/*
+
+extract_patient_speech/Download/cookies.txt
+
+ad_detection/train/train_notebook/XLSR/XLSR-fine_tuning.ipynb

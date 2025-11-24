@@ -1,0 +1,221 @@
+import torch
+from torch import Tensor, nn
+import torch.nn.functional as F
+from config import ModelConfig
+import fairseq
+
+########################XLSR-53-300m####################################
+class SSLModel(nn.Module):
+    """
+    Args:
+        device: Device (cuda/cpu)
+        freeze_xlsr: Whether to freeze XLSR parameters
+            - True: Freeze all parameters, only extract features (no XLSR update)
+            - False: Unfreeze parameters, allow fine-tuning (will update XLSR)
+    """
+    def __init__(self, device, freeze_xlsr=False):
+        super(SSLModel, self).__init__()
+        
+        # cp_path = "/Users/sleepwalker/Library/Mobile Documents/com~apple~CloudDocs/Code-In-iCloud/Adaptation_is_all_you_need/ad_detection/train/xlsr_finetuned-50epoch.pt"
+        cp_path = '/Users/sleepwalker/Library/Mobile Documents/com~apple~CloudDocs/Code-In-iCloud/Adaptation_is_all_you_need/ad_detection/train/xlsr2_300m.pt'
+        # cp_path = "/Users/sleepwalker/Library/Mobile Documents/com~apple~CloudDocs/Code-In-iCloud/Adaptation_is_all_you_need/ad_detection/train/xlsr_finetuned-10epoch.pt"
+        
+        if not freeze_xlsr:
+            print("Using fine-tuned model")
+        else:
+            print("Using original model")
+        model, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([cp_path])
+        self.model = model[0]
+        self.device = device
+        self.out_dim = 1024
+        self.freeze_xlsr = freeze_xlsr
+        
+        # Control whether to freeze model based on freeze_xlsr parameter
+        if self.freeze_xlsr:
+            self.freeze_model()
+        else:
+            self.unfreeze_model()
+
+    def freeze_model(self):
+        """Freeze all XLSR parameters (no fine-tuning)"""
+        for param in self.model.parameters():
+            param.requires_grad = False
+        self.freeze_xlsr = True
+    
+    def unfreeze_model(self):
+        """Unfreeze all XLSR parameters (allow fine-tuning)"""
+        for param in self.model.parameters():
+            param.requires_grad = True
+        self.freeze_xlsr = False
+
+    def extract_feat(self, input_data):
+        """
+        Extract XLSR features
+        
+        Args:
+            input_data: Audio input
+        
+        Returns:
+            emb: Output features from the last layer
+            layerresult: Outputs from all layers
+        """
+        # Ensure model is on correct device and dtype
+        if next(self.model.parameters()).device != input_data.device \
+           or next(self.model.parameters()).dtype != input_data.dtype:
+            self.model.to(input_data.device, dtype=input_data.dtype)
+        
+        # Set model mode based on freeze status
+        if self.freeze_xlsr:
+            self.model.eval()  # Use eval mode when frozen
+        else:
+            self.model.train()  # Use train mode for fine-tuning
+        
+        # Handle input dimensions
+        if input_data.ndim == 3:
+            input_tmp = input_data[:, :, 0]
+        else:
+            input_tmp = input_data
+        
+        # Extract features
+        output = self.model(input_tmp, mask=False, features_only=True)
+        emb = output['x']
+        layerresult = output['layer_results']
+        
+        return emb, layerresult
+
+def getAttenF(layerResult):
+    poollayerResult = []
+    fullf = []
+    for layer in layerResult:
+
+        layery = layer[0].transpose(0, 1).transpose(1, 2) #(x,z)  x(201,b,1024) (b,201,1024) (b,1024,201)
+        layery = F.adaptive_avg_pool1d(layery, 1) #(b,1024,1)
+        layery = layery.transpose(1, 2) # (b,1,1024)
+        poollayerResult.append(layery)
+
+        x = layer[0].transpose(0, 1)
+        x = x.view(x.size(0), -1,x.size(1), x.size(2))
+        fullf.append(x)
+
+    layery = torch.cat(poollayerResult, dim=1)
+    fullfeature = torch.cat(fullf, dim=1)
+    return layery, fullfeature
+############################################################
+
+
+class PoolAttFF(nn.Module):
+    """
+    Attention pooling module
+    
+    Uses attention mechanism to pool sequence into a single vector,
+    then maps to output through feedforward network.
+    
+    Args:
+        config: Model configuration
+        out_dim: Output dimension (2 for AD binary classification)
+    """
+    
+    def __init__(self, config: ModelConfig, out_dim: int):
+        super().__init__()
+        
+        self.config = config
+        
+        # Attention network: hidden -> 2*hidden -> 1 (attention weights)
+        self.linear1 = nn.Linear(config.dim_hidden, 2 * config.dim_hidden)
+        self.linear2 = nn.Linear(2 * config.dim_hidden, 1)
+        
+        # Output mapping: hidden -> out_dim
+        self.linear3 = nn.Linear(config.dim_hidden, out_dim)
+        
+        self.activation = F.relu
+        self.dropout = nn.Dropout(config.dropout)
+    
+    def forward(self, x: Tensor) -> Tensor:
+        """        
+        Args:
+            x: (batch_size, seq_len, hidden_dim)
+        
+        Returns:
+            out: (batch_size, out_dim)
+        """
+        # x: (B, L, H) -> (B, L, 2H) -> (B, L, 1)
+        att = self.linear2(self.dropout(self.activation(self.linear1(x))))
+        
+        # Transpose and apply softmax: (B, L, 1) -> (B, 1, L) -> softmax
+        att = att.transpose(2, 1)  # (B, 1, L)
+        att = F.softmax(att, dim=2)  # Normalize on sequence dimension
+        
+        # att: (B, 1, L), x: (B, L, H) -> (B, 1, H) -> (B, H)
+        x_pooled = torch.bmm(att, x).squeeze(1)
+        
+        # Map to output dimension
+        out = self.linear3(x_pooled)  # (B, out_dim)
+        
+        return out
+
+
+class ADModel(nn.Module):
+    """
+    1. BatchNorm normalization
+    2. Down projection to hidden dimension
+    3. Attention pooling
+    4. Output 2-class logits
+    
+    Input:
+        - x: (batch_size, 10, 25) - 10 time segments, each with 25-dim eGeMAPS features
+    
+    Output:
+        - logits: (batch_size, 2) - Control and Dementia logits
+    """
+    
+    def __init__(self, config: ModelConfig):
+        super().__init__()
+        
+        self.config = config
+        
+        # 1. BatchNorm normalization (on feature dimension)
+        self.norm = nn.BatchNorm1d(config.dim_input)
+        
+        # 2. Down projection layer: 25(1024) -> 12 (default)
+        self.down_proj = nn.Linear(
+            in_features=config.dim_input,
+            out_features=config.dim_hidden,
+        )
+        self.down_proj_drop = nn.Dropout(config.dropout)
+        self.down_proj_act = nn.ReLU()
+        
+        # 3. Attention pooling + output layer
+        self.pool_ad = PoolAttFF(config, out_dim=2)  # Binary classification
+    
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Args:
+            x: (batch_size, 10, 25) - eGeMAPS features / XLSR features
+        
+        Returns:
+            out: (batch_size, 2) - AD classification logits
+        """
+        # 1. BatchNorm: (B, L, C) -> (B, C, L) -> normalize -> (B, L, C)
+        x = self.norm(x.permute(0, 2, 1)).permute(0, 2, 1)
+        
+        # 2. Down projection to hidden dimension
+        x = self.down_proj(x)         # (B, L, H)
+        x = self.down_proj_act(x)
+        x = self.down_proj_drop(x)
+        
+        # 3. Attention pooling + output
+        out = self.pool_ad(x)          # (B, 2)
+
+        return out
+
+
+def create_model(config: ModelConfig = None) -> ADModel:
+    """
+    Args:
+        config: Model configuration (optional, defaults to DEFAULT_CONFIG)
+    """
+    if config is None:
+        from config import DEFAULT_CONFIG
+        config = DEFAULT_CONFIG
+    
+    return ADModel(config)
