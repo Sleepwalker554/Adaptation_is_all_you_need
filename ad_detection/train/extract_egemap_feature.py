@@ -43,17 +43,12 @@ class CsvDataset(Dataset):
     从 CSV 读取 session_id 和音频路径
     """
     
-    def __init__(self, csv_path: Path, dataset_name: str = None):
+    def __init__(self, csv_path: Path, raw_audio_dir: Path):
         super().__init__()
         
         self.csv_path = csv_path
+        self.raw_audio_dir = raw_audio_dir
         self.data = []
-    
-        if dataset_name is None:
-            print(f"数据集名称不能为空！")
-            raise ValueError("数据集名称不能为空")
-        else:
-            self.dataset_name = dataset_name
         
         # 读取 CSV
         with open(csv_path, 'r', encoding='utf-8') as f:
@@ -70,12 +65,12 @@ class CsvDataset(Dataset):
                 else:
                     folder = "Dementia"
                 
-                # 统一使用 clips 目录
-                audio_dir = f"data/raw/{self.dataset_name}_clips/{folder}/{session_id}.wav"
+                # 使用传入的原始音频目录
+                audio_path = self.raw_audio_dir / folder / f"{session_id}.wav"
                 
                 self.data.append({
                     'session_id': session_id,
-                    'audio_path': audio_dir,
+                    'audio_path': str(audio_path.relative_to(PROJECT_ROOT)),
                     'egemaps_path': egemaps_path,
                 })
     
@@ -88,17 +83,16 @@ class CsvDataset(Dataset):
 
 
 # ====== 特征提取函数 ======
-def extract_features_from_csv(csv_path: Path, dataset_name: str = None):
+def extract_features_from_csv(csv_path: Path, raw_audio_dir: Path):
     """
     从 CSV 提取特征
     
     参数:
         csv_path: CSV 文件路径
-        split_name: 数据集名称（train/val，用于打印）
-        dataset_name: 数据集名称（Address/Lu/Pitt，可选，如果不提供会从CSV文件名推断）
+        raw_audio_dir: 原始音频文件目录（包含 Control 和 Dementia 子文件夹）
     """
     # 创建数据集
-    dataset = CsvDataset(csv_path, dataset_name=dataset_name)
+    dataset = CsvDataset(csv_path, raw_audio_dir=raw_audio_dir)
     dataloader = DataLoader(
         dataset,
         batch_size=None,  # 逐个处理
