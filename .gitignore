@@ -1,6 +1,6 @@
 # Data files
 extract_patient_speech/
-ad_detection/models/*
+ad_detection/models/*_seed/
 ad_detection/data/processed/*
 ad_detection/data/raw/*
 extract_patient_speech/Download
