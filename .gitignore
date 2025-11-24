@@ -1,6 +1,13 @@
 # Data files
-extract_patient_speech/Data_*/
-extract_patient_speech/*/Data_*/
+extract_patient_speech/
+ad_detection/models/*
+ad_detection/data/processed/*
+ad_detection/data/raw/*
+extract_patient_speech/Download
+
+# ad_detection specific rules
+ad_detection/train/train_notebook/XLSR/XLSR-fine_tuning.ipynb
+
 *.wav
 *.mp3
 
@@ -8,6 +15,14 @@ extract_patient_speech/*/Data_*/
 *.pt
 *.pth
 *.ckpt
+
+# logs
+ad_detection/train/train_notebook/XLSR/lightning_logs
+ad_detection/train/train_notebook/eGeMap/lightning_logs
+ad_detection/train/lightning_logs/
+ad_detection/train/train_notebook/XLSR/__pycache__
+ad_detection/train/train_notebook/eGeMap/__pycache__
+ad_detection/train/__pycache__
 
 # Logs and checkpoints
 *.log
@@ -35,19 +50,5 @@ __pycache__/
 *.tmp
 *.bak
 *~
+*.DS_Store
 
-# CSV files (data files only, not config CSVs)
-extract_patient_speech/**/*.csv
-ad_detection/data/**/*.csv
-
-# ad_detection specific rules
-ad_detection/data/raw/
-ad_detection/data/processed/
-# Allow CSV files in ad_detection/data/processed/ (they are config files)
-!ad_detection/data/processed/*.csv
-
-ad_detection/models/*
-
-extract_patient_speech/Download/cookies.txt
-
-ad_detection/train/train_notebook/XLSR/XLSR-fine_tuning.ipynb
