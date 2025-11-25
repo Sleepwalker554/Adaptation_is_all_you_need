@@ -17,7 +17,8 @@ def create_train_val_split(
     train_ratio: float = 0.8,
     random_seed: int = 42,
     dataset_name: Optional[str] = "Unknown Dataset",
-    xlsr: bool = True
+    xlsr: bool = True,
+    project_root: Path = None
 ) -> Tuple[Path, Path]:
     """
     Create training and validation CSV files
@@ -27,17 +28,30 @@ def create_train_val_split(
                        (with subfolders Control and Dementia)
         train_csv_path: Output path for the training CSV
         val_csv_path: Output path for the validation CSV
-        feature_dir_name: Feature directory name 
-                          (e.g., "Address_xlsr_features" or "features")
+        feature_dir_name: Feature directory name (can be Path or str)
+                          (e.g., Path("data/processed/Address_xlsr_features") or "Address_xlsr_features")
         train_ratio: Ratio of training samples (default: 0.8)
         random_seed: Random seed (default: 42)
         dataset_name: Dataset name for printing information (optional)
         xlsr: Whether to use XLSR feature mode 
               (True: xlsr_path/.xlsr.pt, False: egemaps_path/.egemaps.pt, default: True)
+        project_root: Project root directory (optional, for converting to relative path)
     
     Returns:
         Tuple[Path, Path]: (Training CSV path, Validation CSV path)
     """
+    
+    # Convert feature_dir_name to relative path string if it's a Path object
+    if isinstance(feature_dir_name, Path):
+        if project_root and feature_dir_name.is_absolute():
+            # Convert absolute path to relative path
+            try:
+                feature_dir_name = str(feature_dir_name.relative_to(project_root))
+            except ValueError:
+                # If can't make relative, use name only
+                feature_dir_name = feature_dir_name.name
+        else:
+            feature_dir_name = str(feature_dir_name)
     
     # Ensure output directories exist
     train_csv_path.parent.mkdir(parents=True, exist_ok=True)
