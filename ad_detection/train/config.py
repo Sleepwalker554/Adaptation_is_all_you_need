@@ -13,7 +13,7 @@ DROPOUT = 0.2                # Dropout ratio
 NUM_WORKERS = 4
 RANDOM_SEED = 42
 
-FEAT_SEQ_LEN = 5      # Number of audio segments when extracting eGeMaps
+FEAT_SEQ_LEN = 10      # Number of audio segments when extracting eGeMaps
 SAMPLING_RATE = 16000  # Audio sampling rate
 
 SECOND_LENGTH = 45     # XLSR extraction audio length (seconds)
