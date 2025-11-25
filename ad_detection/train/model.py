@@ -15,10 +15,7 @@ class SSLModel(nn.Module):
     """
     def __init__(self, device, freeze_xlsr=False):
         super(SSLModel, self).__init__()
-        
-        # cp_path = "/Users/sleepwalker/Library/Mobile Documents/com~apple~CloudDocs/Code-In-iCloud/Adaptation_is_all_you_need/ad_detection/train/xlsr_finetuned-50epoch.pt"
         cp_path = '/Users/sleepwalker/Library/Mobile Documents/com~apple~CloudDocs/Code-In-iCloud/Adaptation_is_all_you_need/ad_detection/train/xlsr2_300m.pt'
-        # cp_path = "/Users/sleepwalker/Library/Mobile Documents/com~apple~CloudDocs/Code-In-iCloud/Adaptation_is_all_you_need/ad_detection/train/xlsr_finetuned-10epoch.pt"
         
         if not freeze_xlsr:
             print("Using fine-tuned model")

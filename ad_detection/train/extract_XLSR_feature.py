@@ -61,11 +61,11 @@ def extract_xlsr_features_from_csv(
             
             # Build paths
             folder = "Control" if ad == 0 else "Dementia"
-            # 尝试查找 .wav 或 .mp3 格式的音频文件
+            # Try to find audio file in .wav or .mp3 format
             audio_path_wav = raw_audio_dir / folder / f"{session_id}.wav"
             audio_path_mp3 = raw_audio_dir / folder / f"{session_id}.mp3"
             
-            # 确定实际使用的音频路径
+            # Determine which audio file exists
             if audio_path_wav.exists():
                 audio_path = audio_path_wav
             elif audio_path_mp3.exists():

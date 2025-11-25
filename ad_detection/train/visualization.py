@@ -21,22 +21,22 @@ def plot_training_curves(
     save_path: Optional[Path] = None
 ):
     """
-    绘制训练和验证的损失和准确率曲线
+    Plot training and validation loss and accuracy curves
     
     Args:
-        epochs: epoch列表
-        train_loss, val_loss: 训练/验证损失
-        train_acc, val_acc: 训练/验证准确率 (0-1之间)
-        train_color: 训练曲线颜色 (默认青色)
-        val_color: 验证曲线颜色 (默认紫色)
-        title_prefix: 标题前缀 (如 "Seed 42")
-        save_path: 保存路径 (可选)
+        epochs: epoch list
+        train_loss, val_loss: Training/validation loss
+        train_acc, val_acc: Training/validation accuracy (0-1)
+        train_color: Training curve color (default cyan)
+        val_color: Validation curve color (default purple)
+        title_prefix: Title prefix (e.g. "Seed 42")
+        save_path: Save path (optional)
     """
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
     
     title_base = f"{title_prefix}: " if title_prefix else ""
     
-    # 损失曲线
+    # Loss curve
     ax1.plot(epochs, train_loss, 'o-', label='Train', color=train_color, linewidth=2, markersize=4)
     ax1.plot(epochs, val_loss, 's-', label='Val', color=val_color, linewidth=2, markersize=4)
     ax1.set_title(f'{title_base}Loss', fontsize=12, fontweight='bold')
@@ -45,7 +45,7 @@ def plot_training_curves(
     ax1.legend()
     ax1.grid(True, alpha=0.3)
     
-    # 准确率曲线 (转为百分比)
+    # Accuracy curve
     train_acc_pct = [acc * 100 if acc <= 1.0 else acc for acc in train_acc]
     val_acc_pct = [acc * 100 if acc <= 1.0 else acc for acc in val_acc]
     
@@ -74,24 +74,16 @@ def plot_seeds_comparison(
     save_path: Optional[Path] = None
 ):
     """
-    对比不同seed的验证准确率
-    
     Args:
-        seeds: seed列表
-        accuracies: 对应的准确率 (0-1之间)
-        bar_color: 柱状图颜色
-        mean_color: 平均线颜色
-        save_path: 保存路径 (可选)
+        seeds: seed list
+        accuracies: Corresponding accuracy
+        bar_color: Bar chart color
+        mean_color: Mean line color
+        save_path: Save path (optional)
     """
     fig, ax = plt.subplots(figsize=(10, 6))
-    
-    # 转换为百分比
     acc_pct = [a * 100 if a <= 1.0 else a for a in accuracies]
-    
-    # 柱状图
     bars = ax.bar(range(len(seeds)), acc_pct, color=bar_color, alpha=0.7, edgecolor='black')
-    
-    # 平均线
     mean_acc = sum(acc_pct) / len(acc_pct)
     ax.axhline(y=mean_acc, color=mean_color, linestyle='--', 
                linewidth=2, label=f'Mean: {mean_acc:.2f}%')
@@ -104,7 +96,7 @@ def plot_seeds_comparison(
     ax.legend()
     ax.grid(True, alpha=0.3, axis='y')
     
-    # 在柱子上标注数值
+    # Label the values on the bars
     for bar, value in zip(bars, acc_pct):
         height = bar.get_height()
         ax.text(bar.get_x() + bar.get_width()/2., height,
