@@ -107,6 +107,7 @@ def extract_egemaps_features_from_csv(csv_path: Path, raw_audio_dir: Path):
     # Count the number of extracted features
     extracted = 0
     skipped = 0
+    error = 0
     
     # Ignore OpenSMILE warnings
     warnings.simplefilter('ignore')
@@ -125,7 +126,8 @@ def extract_egemaps_features_from_csv(csv_path: Path, raw_audio_dir: Path):
         
         # Check if the audio file exists
         if not audio_path_abs.exists():
-            print(f"\n⚠️  Audio file does not exist: {audio_path_abs}")
+            print(f"\nError: Audio file does not exist: {audio_path_abs}")
+            error += 1
             continue
         
         try:
@@ -161,10 +163,12 @@ def extract_egemaps_features_from_csv(csv_path: Path, raw_audio_dir: Path):
             extracted += 1
             
         except Exception as e:
-            print(f"\n❌ Extraction failed {session_id}: {e}")
+            print(f"\nError: Extraction failed {session_id}: {e}")
+            error += 1
             continue
     
     print(f"\n============= Extraction completed! =============")
     print(f"Successfully extracted: {extracted} 个")
     print(f"Skipped: {skipped} 个")
     print(f"Total: {len(dataset)} 个")
+    print(f"Errors: {error} 个")

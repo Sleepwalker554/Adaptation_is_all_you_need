@@ -16,7 +16,9 @@ WEIGHT_DECAY = 1e-2
 # ====== Model parameters ======
 #DIM_HIDDEN = 32, DROPOUT = 0.2, SECOND_LENGTH = 50  is the best configuration for ADReSS
 #DIM_HIDDEN = 24, DROPOUT = 0.2, SECOND_LENGTH = 55  is the best configuration for ADReSS
+########################################################
 #DIM_HIDDEN = 32, DROPOUT = 0.2, SECOND_LENGTH = 60  is the best configuration for ADReSS
+########################################################
 
 DIM_INPUT = 25
 DIM_HIDDEN = 32              # Network Hidden dimension
