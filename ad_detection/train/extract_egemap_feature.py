@@ -32,13 +32,11 @@ class CsvDataset(Dataset):
     """ 
     Load session_id and audio path from CSV
     """
-    
-    def __init__(self, csv_path: Path, raw_audio_dir: Path, project_root: Path = None):
+    def __init__(self, csv_path: Path, raw_audio_dir: Path):
         super().__init__()
         
         self.csv_path = csv_path
         self.raw_audio_dir = raw_audio_dir
-        self.project_root = project_root if project_root is not None else PROJECT_ROOT
         self.data = []
         
         with open(csv_path, 'r', encoding='utf-8') as f:
@@ -70,7 +68,7 @@ class CsvDataset(Dataset):
                 
                 self.data.append({
                     'session_id': session_id,
-                    'audio_path': str(audio_path.relative_to(self.project_root)),
+                    'audio_path': str(audio_path.relative_to(PROJECT_ROOT)),
                     'egemaps_path': egemaps_path,
                 })
     
@@ -82,19 +80,14 @@ class CsvDataset(Dataset):
         return item['audio_path'], item['egemaps_path'], item['session_id']
 
 
-def extract_egemaps_features_from_csv(csv_path: Path, raw_audio_dir: Path, project_root: Path = None):
+def extract_egemaps_features_from_csv(csv_path: Path, raw_audio_dir: Path):
     """
     Args:
         csv_path: CSV file path
         raw_audio_dir: Original audio directory (contains Control and Dementia subfolders)
-        project_root: Project root directory (optional, defaults to module-level PROJECT_ROOT)
     """
-    # Use provided project_root or fall back to module-level PROJECT_ROOT
-    if project_root is None:
-        project_root = PROJECT_ROOT
-    
     # Create dataset
-    dataset = CsvDataset(csv_path, raw_audio_dir=raw_audio_dir, project_root=project_root)
+    dataset = CsvDataset(csv_path, raw_audio_dir=raw_audio_dir)
     dataloader = DataLoader(
         dataset,
         batch_size=None,  # Process one by one
@@ -123,8 +116,8 @@ def extract_egemaps_features_from_csv(csv_path: Path, raw_audio_dir: Path, proje
     for audio_path, egemaps_path, session_id in tqdm(dataloader, desc="Extracting"):
         
         # Convert to absolute path
-        audio_path_abs = project_root / audio_path
-        egemaps_path_abs = project_root / egemaps_path
+        audio_path_abs = PROJECT_ROOT / audio_path
+        egemaps_path_abs = PROJECT_ROOT / egemaps_path
         
         # Check if it already exists
         if egemaps_path_abs.exists():

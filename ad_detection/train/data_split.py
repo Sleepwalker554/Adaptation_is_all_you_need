@@ -19,7 +19,6 @@ def create_train_val_split(
     random_seed: int = 42,
     dataset_name: Optional[str] = "Unknown Dataset",
     xlsr: bool = True,
-    project_root: Path = None
 ) -> Tuple[Path, Path]:
     """
     Create training and validation CSV files
@@ -36,22 +35,17 @@ def create_train_val_split(
         dataset_name: Dataset name for printing information (optional)
         xlsr: Whether to use XLSR feature mode 
               (True: xlsr_path/.xlsr.pt, False: egemaps_path/.egemaps.pt, default: True)
-        project_root: Project root directory (defaults to config.PROJECT_ROOT if None)
     
     Returns:
         Tuple[Path, Path]: (Training CSV path, Validation CSV path)
     """
     
-    # Use default PROJECT_ROOT if not provided
-    if project_root is None:
-        project_root = PROJECT_ROOT
-    
     # Convert feature_dir_name to relative path string if it's a Path object
     if isinstance(feature_dir_name, Path):
-        if project_root and feature_dir_name.is_absolute():
+        if feature_dir_name.is_absolute():
             # Convert absolute path to relative path
             try:
-                feature_dir_name = str(feature_dir_name.relative_to(project_root))
+                feature_dir_name = str(feature_dir_name.relative_to(PROJECT_ROOT))
             except ValueError:
                 # If can't make relative, use name only
                 feature_dir_name = feature_dir_name.name

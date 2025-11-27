@@ -10,19 +10,16 @@ class FeatureDataset(Dataset):
     def __init__(
             self,
             csv_path: Path,
-            project_root: Path = None,
             xlsr: bool = False,
     ):
         """
         Args:
             csv_path: CSV file path
-            project_root: Project root directory (defaults to config.PROJECT_ROOT if None)
             xlsr: True to use XLSR features, False to use eGeMAPS features
         """
         super().__init__()
 
         self.csv_path = csv_path
-        self.project_root = project_root if project_root is not None else PROJECT_ROOT
         self.xlsr = xlsr
 
         if xlsr:
@@ -59,7 +56,7 @@ class FeatureDataset(Dataset):
                     csv_dir = Path(self.csv_path).parent
                     feature_path_abs = (csv_dir / feature_path).resolve()
                 else:
-                    feature_path_abs = self.project_root / feature_path
+                    feature_path_abs = PROJECT_ROOT / feature_path
 
                 # Check if file exists
                 if not feature_path_abs.exists():
@@ -123,7 +120,6 @@ class FeatureDataset(Dataset):
 def create_dataloaders(
         train_csv: Path,
         val_csv: Path,
-        project_root: Path = None,
         batch_size: int = 32,
         num_workers: int = 4,
         xlsr: bool = False,
@@ -132,7 +128,6 @@ def create_dataloaders(
     Args:
         train_csv: Training set CSV path
         val_csv: Validation set CSV path
-        project_root: Project root directory (defaults to config.PROJECT_ROOT if None)
         batch_size: Batch size
         num_workers: Number of worker processes
         xlsr: True to use XLSR features, False to use eGeMAPS features
@@ -141,8 +136,6 @@ def create_dataloaders(
         train_loader: Training set DataLoader
         val_loader: Validation set DataLoader
     """
-    if project_root is None:
-        project_root = PROJECT_ROOT
     from torch.utils.data import DataLoader
 
     feature_name = "XLSR" if xlsr else "eGeMAPS"
@@ -150,14 +143,14 @@ def create_dataloaders(
     # 创建数据集
     print(f"============= Creating training set ({feature_name} features) =============")
     try:
-        train_dataset = FeatureDataset(train_csv, project_root, xlsr=xlsr)
+        train_dataset = FeatureDataset(train_csv, xlsr=xlsr)
     except ValueError as e:
         print(f"\n❌ Loading training set failed: {e}")
         raise
 
     print(f"\n============= Creating validation set ({feature_name} features) =============")
     try:
-        val_dataset = FeatureDataset(val_csv, project_root, xlsr=xlsr)
+        val_dataset = FeatureDataset(val_csv, xlsr=xlsr)
     except ValueError as e:
         print(f"\n❌ 验证集加载失败: {e}")
         raise
