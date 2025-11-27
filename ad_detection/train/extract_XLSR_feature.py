@@ -100,12 +100,10 @@ def extract_xlsr_features_from_csv(
                 max_length = sampling_rate * SECOND_LENGTH  # 45 seconds = 720000 samples at 16kHz
                 # Cutting
                 if len(audio_np) > max_length:
-                    print(f"\nCutting: Audio {session_id}: {len(audio_np)/sampling_rate:.1f}s -> {SECOND_LENGTH:.1f}s")
                     audio_np = audio_np[:max_length]
                 # Padding
                 if len(audio_np) < max_length:
-                    print(f"\nPadding: Audio {session_id}: {len(audio_np)/sampling_rate:.1f}s -> {SECOND_LENGTH:.1f}s")
-                    np.pad(audio_np, (0, max_length - len(audio_np)), mode='constant')
+                    audio_np = np.pad(audio_np, (0, max_length - len(audio_np)), mode='constant')
  
                 # Convert to tensor and move to device
                 audio_tensor = torch.from_numpy(audio_np).unsqueeze(0).to(device)
