@@ -86,7 +86,7 @@ class CsvDataset(Dataset):
         return item['audio_path'], item['egemaps_path'], item['session_id']
 
 
-def extract_features_from_csv(csv_path: Path, raw_audio_dir: Path, project_root: Path = None):
+def extract_egemaps_features_from_csv(csv_path: Path, raw_audio_dir: Path, project_root: Path = None):
     """
     Args:
         csv_path: CSV file path
