@@ -20,7 +20,7 @@ def extract_features_from_csv(
     freeze_xlsr: bool = True,
 ):
     """
-    Extract XLSR features for a single CSV split.
+    Extract XLSR features for a CSV split.
     
     Args:
         csv_path: Path to the CSV file containing session_id and ad columns.
@@ -76,7 +76,7 @@ def extract_features_from_csv(
             continue
 
         if audio_path is None or not audio_path.exists():
-            print(f"\n⚠️  Audio file does not exist (tried .wav and .mp3): {session_id}")
+            print(f"\n⚠️  Audio file does not exist: {session_id}")
             errors += 1
             continue
 
@@ -89,12 +89,14 @@ def extract_features_from_csv(
             audio_np = librosa.to_mono(audio_np)
             audio_np = np.float32(audio_np)
 
+            # Make each Audio file same duration
             max_length = sampling_rate * SECOND_LENGTH
             if len(audio_np) > max_length:
                 audio_np = audio_np[:max_length]
             if len(audio_np) < max_length:
                 audio_np = np.pad(audio_np, (0, max_length - len(audio_np)), mode='constant')
-
+            
+            
             audio_tensor = torch.from_numpy(audio_np).unsqueeze(0).to(device)
 
             emb, layerresult = ssl_model.extract_feat(audio_tensor)
