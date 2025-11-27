@@ -7,6 +7,7 @@ import csv
 from pathlib import Path
 from random import Random
 from typing import Tuple, List, Dict, Optional
+from config import PROJECT_ROOT
 
 
 def create_train_val_split(
@@ -35,11 +36,15 @@ def create_train_val_split(
         dataset_name: Dataset name for printing information (optional)
         xlsr: Whether to use XLSR feature mode 
               (True: xlsr_path/.xlsr.pt, False: egemaps_path/.egemaps.pt, default: True)
-        project_root: Project root directory (optional, for converting to relative path)
+        project_root: Project root directory (defaults to config.PROJECT_ROOT if None)
     
     Returns:
         Tuple[Path, Path]: (Training CSV path, Validation CSV path)
     """
+    
+    # Use default PROJECT_ROOT if not provided
+    if project_root is None:
+        project_root = PROJECT_ROOT
     
     # Convert feature_dir_name to relative path string if it's a Path object
     if isinstance(feature_dir_name, Path):

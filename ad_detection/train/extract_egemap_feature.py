@@ -9,11 +9,7 @@ from opensmile.core.smile import Smile
 from opensmile.core.define import FeatureSet, FeatureLevel
 from torch.utils.data import Dataset, DataLoader
 from tqdm.auto import tqdm
-from config import FEAT_SEQ_LEN, SAMPLING_RATE
-
-# ====== Path configuration ======
-SCRIPT_DIR = Path(__file__).parent
-PROJECT_ROOT = SCRIPT_DIR.parent
+from config import FEAT_SEQ_LEN, SAMPLING_RATE, PROJECT_ROOT
 
 def load_audio(file_path: str, sampling_rate: int) -> np.ndarray:
     """ 

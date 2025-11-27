@@ -1,3 +1,11 @@
+from pathlib import Path
+
+# ====== Path configuration ======
+# Get the absolute path of the config.py file
+CONFIG_FILE = Path(__file__).resolve()
+# ad_detection/train/config.py -> ad_detection/
+PROJECT_ROOT = CONFIG_FILE.parent.parent
+
 # ====== Training parameters ======
 MAX_EPOCHS = 50              
 BATCH_SIZE = 32              

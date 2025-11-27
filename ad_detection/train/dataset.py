@@ -2,8 +2,7 @@ import csv
 from pathlib import Path
 import torch
 from torch.utils.data import Dataset
-from pathlib import Path
-from config import FEAT_SEQ_LEN, XLSR_FEATURE_DIM
+from config import FEAT_SEQ_LEN, XLSR_FEATURE_DIM, PROJECT_ROOT
 class FeatureDataset(Dataset):
     """
     Load data from CSV, preload features to memory
@@ -11,19 +10,19 @@ class FeatureDataset(Dataset):
     def __init__(
             self,
             csv_path: Path,
-            project_root: Path,
+            project_root: Path = None,
             xlsr: bool = False,
     ):
         """
         Args:
             csv_path: CSV file path
-            project_root: Project root directory
+            project_root: Project root directory (defaults to config.PROJECT_ROOT if None)
             xlsr: True to use XLSR features, False to use eGeMAPS features
         """
         super().__init__()
 
         self.csv_path = csv_path
-        self.project_root = project_root
+        self.project_root = project_root if project_root is not None else PROJECT_ROOT
         self.xlsr = xlsr
 
         if xlsr:
@@ -124,7 +123,7 @@ class FeatureDataset(Dataset):
 def create_dataloaders(
         train_csv: Path,
         val_csv: Path,
-        project_root: Path,
+        project_root: Path = None,
         batch_size: int = 32,
         num_workers: int = 4,
         xlsr: bool = False,
@@ -133,7 +132,7 @@ def create_dataloaders(
     Args:
         train_csv: Training set CSV path
         val_csv: Validation set CSV path
-        project_root: Project root directory
+        project_root: Project root directory (defaults to config.PROJECT_ROOT if None)
         batch_size: Batch size
         num_workers: Number of worker processes
         xlsr: True to use XLSR features, False to use eGeMAPS features
@@ -142,6 +141,8 @@ def create_dataloaders(
         train_loader: Training set DataLoader
         val_loader: Validation set DataLoader
     """
+    if project_root is None:
+        project_root = PROJECT_ROOT
     from torch.utils.data import DataLoader
 
     feature_name = "XLSR" if xlsr else "eGeMAPS"
