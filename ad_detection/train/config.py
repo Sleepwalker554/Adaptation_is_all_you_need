@@ -16,7 +16,7 @@ RANDOM_SEED = 42
 FEAT_SEQ_LEN = 10      # Number of audio segments when extracting eGeMaps
 SAMPLING_RATE = 16000  # Audio sampling rate
 
-SECOND_LENGTH = 50     # XLSR extraction audio length (seconds)
+SECOND_LENGTH = 60     # XLSR extraction audio length (seconds)
 
 class ModelConfig:    
     def __init__(
