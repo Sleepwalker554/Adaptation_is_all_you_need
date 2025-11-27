@@ -7,7 +7,7 @@ WEIGHT_DECAY = 1e-2
 
 # ====== Model parameters ======
 DIM_INPUT = 25
-DIM_HIDDEN = 12
+DIM_HIDDEN = 24
 DROPOUT = 0.2                # Dropout ratio
 
 NUM_WORKERS = 4
@@ -16,7 +16,7 @@ RANDOM_SEED = 42
 FEAT_SEQ_LEN = 10      # Number of audio segments when extracting eGeMaps
 SAMPLING_RATE = 16000  # Audio sampling rate
 
-SECOND_LENGTH = 45     # XLSR extraction audio length (seconds)
+SECOND_LENGTH = 50     # XLSR extraction audio length (seconds)
 
 class ModelConfig:    
     def __init__(
