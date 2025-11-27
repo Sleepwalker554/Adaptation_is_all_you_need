@@ -102,8 +102,9 @@ def extract_features_from_csv(
             emb, layerresult = ssl_model.extract_feat(audio_tensor)
 
             layery, fullfeature = getAttenF(layerresult)
-
             xlsr_feat = layery[:, -1, :].squeeze(0).cpu()  # Shape: (1024,)
+
+            # emb: (B, T', 1024)，这里 B=1
 
             xlsr_features_list = [xlsr_feat]
             xlsr_features = torch.stack(xlsr_features_list, dim=0).detach()  # Shape: (1, 1024)
@@ -116,7 +117,6 @@ def extract_features_from_csv(
             errors += 1
             continue
 
-    print(f"\n============= {split_name} Extraction Complete! =============")
     print(f"Successfully extracted: {extracted}")
     print(f"Already exists (skipped): {skipped}")
     print(f"Errors: {errors}")
