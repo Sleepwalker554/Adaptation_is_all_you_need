@@ -7,7 +7,7 @@ WEIGHT_DECAY = 1e-2
 
 # ====== Model parameters ======
 DIM_INPUT = 25
-DIM_HIDDEN = 24
+DIM_HIDDEN = 48
 DROPOUT = 0.2                # Dropout ratio
 
 NUM_WORKERS = 4
