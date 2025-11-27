@@ -11,17 +11,16 @@ from torch.utils.data import Dataset, DataLoader
 from tqdm.auto import tqdm
 from config import FEAT_SEQ_LEN, SAMPLING_RATE, PROJECT_ROOT
 
-def load_audio(file_path: str, sampling_rate: int) -> np.ndarray:
+def load_audio(file_path: str) -> np.ndarray:
     """ 
     Args:
         file_path: Audio file path
-        sampling_rate: Target sampling rate
     
     Returns:
         audio_array: numpy array, mono audio
     """
     # Use librosa to load (supports MP3 and WAV)
-    array, _ = librosa.load(file_path, sr=sampling_rate, res_type="kaiser_best")
+    array, _ = librosa.load(file_path, sr=SAMPLING_RATE, res_type="kaiser_best")
     # Ensure mono
     array = librosa.to_mono(array)
     # Convert to float32
@@ -131,7 +130,7 @@ def extract_egemaps_features_from_csv(csv_path: Path, raw_audio_dir: Path):
         
         try:
             # Load audio
-            audio_np = load_audio(str(audio_path_abs), sampling_rate=SAMPLING_RATE)
+            audio_np = load_audio(str(audio_path_abs))
             
             # Audio segmentation (remove the part that is not enough for one segment)
             usable_length = (audio_np.shape[0] // FEAT_SEQ_LEN) * FEAT_SEQ_LEN

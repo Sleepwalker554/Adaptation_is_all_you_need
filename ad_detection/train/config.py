@@ -9,26 +9,33 @@ PROJECT_ROOT = CONFIG_FILE.parent.parent
 # ====== Training parameters ======
 MAX_EPOCHS = 50              
 BATCH_SIZE = 32              
-LEARNING_RATE = 3e-3         
+LEARNING_RATE = 3e-3         #Best learning rate is 3e-3
 WARMUP_STEPS = 100
 WEIGHT_DECAY = 1e-2
 
 # ====== Model parameters ======
+#DIM_HIDDEN = 32, DROPOUT = 0.2, SECOND_LENGTH = 50  is the best configuration for ADReSS
+#DIM_HIDDEN = 24, DROPOUT = 0.2, SECOND_LENGTH = 55  is the best configuration for ADReSS
+#DIM_HIDDEN = 32, DROPOUT = 0.2, SECOND_LENGTH = 60  is the best configuration for ADReSS
+
 DIM_INPUT = 25
-DIM_HIDDEN = 48              # Network Hidden dimension
+DIM_HIDDEN = 32              # Network Hidden dimension
 DROPOUT = 0.2                # Dropout ratio
 RANDOM_SEEDS = [21, 42, 84, 168, 336]
 
-NUM_WORKERS = 4
-RANDOM_SEED = 42
-
+# ====== eGeMAPS features extraction parameters ======
 FEAT_SEQ_LEN = 10      # Number of audio segments when extracting eGeMaps
-SAMPLING_RATE = 16000  # Audio sampling rate
 
+# ====== XLSR features extraction parameters ======
 SECOND_LENGTH = 60     # XLSR extraction audio length (seconds)
-XLSR_FEATURE_DIM = 2048  # XLSR feature dimension (output from XLSR-53 model)
+XLSR_FEATURE_DIM = 1024  # XLSR feature dimension (output from XLSR-53 model)
 # XLSR Attentive Statistics Pooling = 2048
 # XLSR Average Pooling = 1024
+
+# ====== Data loading parameters ======
+NUM_WORKERS = 4
+RANDOM_SEED = 42
+SAMPLING_RATE = 16000  # Audio sampling rate
 
 class ModelConfig:    
     def __init__(

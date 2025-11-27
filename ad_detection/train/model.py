@@ -17,10 +17,10 @@ class SSLModel(nn.Module):
         super(SSLModel, self).__init__()
         
         if not freeze_xlsr:
-            print("Using fine-tuned model")
+            print("XLSR:Using fine-tuned XLSR model")
             cp_path = ''
         else:
-            print("Using original model")
+            print("XLSR:Using original XLSR model")
             cp_path = '/Users/sleepwalker/Library/Mobile Documents/com~apple~CloudDocs/Code-In-iCloud/Adaptation_is_all_you_need/ad_detection/train/xlsr2_300m.pt'
         
         model, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([cp_path])

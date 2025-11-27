@@ -6,7 +6,7 @@ from pathlib import Path
 from tqdm.auto import tqdm
 from typing import Union, Optional
 from model import SSLModel, XLSR_Average_Pooling, XLSR_Attentive_Statistic_Pooling
-from config import SECOND_LENGTH
+from config import SECOND_LENGTH, SAMPLING_RATE
 
 
 def extract_features_from_csv(
@@ -14,7 +14,6 @@ def extract_features_from_csv(
     split_name: str,
     raw_audio_dir: Union[str, Path],
     xlsr_features_dir: Union[str, Path],
-    sampling_rate: int = 16000,
     device: str = "cpu",
     ssl_model: Optional[SSLModel] = None,
     freeze_xlsr: bool = True,
@@ -27,7 +26,6 @@ def extract_features_from_csv(
         split_name: Name of the split (for logging).
         raw_audio_dir: Directory containing Control/Dementia subfolders with audio files.
         xlsr_features_dir: Output directory for .xlsr.pt feature files.
-        sampling_rate: Target sampling rate for loading audio.
         device: Device for inference (e.g., "cpu" or "cuda").
         ssl_model: Optional preloaded SSLModel to reuse across calls.
         freeze_xlsr: Whether to freeze XLSR parameters when creating a model.
@@ -84,14 +82,14 @@ def extract_features_from_csv(
         try:
             audio_np, _ = librosa.load(
                 str(audio_path),
-                sr=sampling_rate,
+                sr=SAMPLING_RATE,
                 res_type="kaiser_best"
             )
             audio_np = librosa.to_mono(audio_np)
             audio_np = np.float32(audio_np)
 
             # Make each Audio file same duration
-            max_length = sampling_rate * SECOND_LENGTH
+            max_length = SAMPLING_RATE * SECOND_LENGTH
             if len(audio_np) > max_length:
                 audio_np = audio_np[:max_length]
             if len(audio_np) < max_length:
@@ -99,17 +97,18 @@ def extract_features_from_csv(
             
             # Convert audio to tensor
             audio_tensor = torch.from_numpy(audio_np).unsqueeze(0).to(device)
-            
+
             # Extract XLSR features
+            # Extract XLSR embeddings
             emb, layerresult = ssl_model.extract_feat(audio_tensor)
 
             # Average Pooling features
             # XLSR_FEATURE_DIM = 1024
-            # layery, fullfeature = XLSR_Average_Pooling(layerresult)
+            layery, fullfeature = XLSR_Average_Pooling(layerresult)
 
             # Attentive Statistics Pooling features
             # XLSR_FEATURE_DIM = 2048
-            layery, fullfeature = XLSR_Attentive_Statistic_Pooling(layerresult)
+            # layery, fullfeature = XLSR_Attentive_Statistic_Pooling(layerresult)
             # Save features
             xlsr_features = layery[:, -1, :].cpu().detach()  # Shape: (1, XLSR_FEATURE_DIM)
             
