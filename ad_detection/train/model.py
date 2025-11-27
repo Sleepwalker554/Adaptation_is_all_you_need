@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor, nn
 import torch.nn.functional as F
-from config import ModelConfig
+from config import ModelConfig, XLSR_FEATURE_DIM
 import fairseq
 
 ########################XLSR-53-300m####################################
@@ -26,7 +26,7 @@ class SSLModel(nn.Module):
         model, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([cp_path])
         self.model = model[0].to(device)
         self.device = device
-        self.out_dim = 1024
+        self.out_dim = XLSR_FEATURE_DIM
         self.freeze_xlsr = freeze_xlsr
         
         # Control whether to freeze model based on freeze_xlsr parameter
@@ -74,13 +74,26 @@ class SSLModel(nn.Module):
         
         return embedding, layerresult
 
-def getAttenF(layerResult):
+def XLSR_Average_Pooling(layerResult):
+    """
+    Average pooling for XLSR layer outputs.
+    
+    For each layer, apply adaptive average pooling along the time dimension
+    to get a fixed-length representation.
+    
+    Args:
+        layerResult: List of layer outputs, each with shape (Time, Batch, Feature)
+    
+    Returns:
+        layery: Pooled features from all layers, shape (Batch, num_layers, XLSR_FEATURE_DIM)
+        fullfeature: Full features from all layers (concatenated)
+    """
     poollayerResult = []
     fullf = []
     for layer in layerResult:
-        #layer[0] = (Time=201, Batch=32, Feature=1024)
-        layery = layer[0].permute(1, 2 ,0) #(Time, Batch, Feature=1024) —> (Batch, Feature=1024, Time)
-        layery = F.adaptive_avg_pool1d(layery, 1) #(Batch,Feature=1024,Time=1)
+        #layer[0] = (Time=201, Batch=32, Feature=XLSR_FEATURE_DIM)
+        layery = layer[0].permute(1, 2 ,0) #(Time, Batch, Feature=XLSR_FEATURE_DIM) —> (Batch, Feature=XLSR_FEATURE_DIM, Time)
+        layery = F.adaptive_avg_pool1d(layery, 1) #(Batch,Feature=XLSR_FEATURE_DIM,Time=1)
         layery = layery.transpose(1, 2) # (B,F,1) → (B,1,F)
         poollayerResult.append(layery)
 
@@ -91,6 +104,7 @@ def getAttenF(layerResult):
     layery = torch.cat(poollayerResult, dim=1)
     fullfeature = torch.cat(fullf, dim=1)
     return layery, fullfeature
+
 ############################################################
 
 
@@ -167,7 +181,7 @@ class ADModel(nn.Module):
         # 1. BatchNorm normalization (on feature dimension)
         self.norm = nn.BatchNorm1d(config.dim_input)
         
-        # 2. Down projection layer: 25(1024) -> 12 (default)
+        # 2. Down projection layer: 25(eGeMAPS) or XLSR_FEATURE_DIM(XLSR) -> dim_hidden (default)
         self.down_proj = nn.Linear(
             in_features=config.dim_input,
             out_features=config.dim_hidden,

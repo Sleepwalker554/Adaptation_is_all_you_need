@@ -9,6 +9,7 @@ WEIGHT_DECAY = 1e-2
 DIM_INPUT = 25
 DIM_HIDDEN = 48              # Network Hidden dimension
 DROPOUT = 0.2                # Dropout ratio
+RANDOM_SEEDS = [21, 42, 84, 168, 336]
 
 NUM_WORKERS = 4
 RANDOM_SEED = 42
@@ -17,6 +18,7 @@ FEAT_SEQ_LEN = 10      # Number of audio segments when extracting eGeMaps
 SAMPLING_RATE = 16000  # Audio sampling rate
 
 SECOND_LENGTH = 60     # XLSR extraction audio length (seconds)
+XLSR_FEATURE_DIM = 1024  # XLSR feature dimension (output from XLSR-53 model)
 
 class ModelConfig:    
     def __init__(

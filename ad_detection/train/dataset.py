@@ -3,7 +3,7 @@ from pathlib import Path
 import torch
 from torch.utils.data import Dataset
 from pathlib import Path
-from config import FEAT_SEQ_LEN
+from config import FEAT_SEQ_LEN, XLSR_FEATURE_DIM
 class FeatureDataset(Dataset):
     """
     Load data from CSV, preload features to memory
@@ -29,7 +29,7 @@ class FeatureDataset(Dataset):
         if xlsr:
             self.feature_path_key = 'xlsr_path'
             self.feature_name = 'XLSR'
-            self.expected_shape = (1, 1024)
+            self.expected_shape = (1, XLSR_FEATURE_DIM)
         else:
             self.feature_path_key = 'egemaps_path'
             self.feature_name = 'eGeMAPS'
@@ -109,7 +109,7 @@ class FeatureDataset(Dataset):
             index: sample index
 
         Returns:
-            features: eGeMAPS features (FEAT_SEQ_LEN, 25) or XLSR features (1, 1024)
+            features: eGeMAPS features (FEAT_SEQ_LEN, 25) or XLSR features (1, XLSR_FEATURE_DIM)
             label: 0 (Control) or 1 (Dementia)
         """
         features = self.features[index]

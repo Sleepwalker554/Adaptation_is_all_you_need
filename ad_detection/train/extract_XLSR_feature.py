@@ -5,7 +5,7 @@ import numpy as np
 from pathlib import Path
 from tqdm.auto import tqdm
 from typing import Union, Optional
-from model import SSLModel, getAttenF
+from model import SSLModel, XLSR_Average_Pooling
 from config import SECOND_LENGTH
 
 
@@ -58,6 +58,8 @@ def extract_features_from_csv(
         session_id = row['session_id']
         ad = int(row['ad'])
 
+        # Build audio path 
+        # from CSV's third column (ad) to determine audio path in Control or Dementia folder
         folder = "Control" if ad == 0 else "Dementia"
         audio_path_wav = raw_audio_dir / folder / f"{session_id}.wav"
         audio_path_mp3 = raw_audio_dir / folder / f"{session_id}.mp3"
@@ -68,17 +70,16 @@ def extract_features_from_csv(
             audio_path = audio_path_mp3
         else:
             audio_path = None
+            print(f"\n⚠️  Audio file does not exist: {session_id}")
+            errors += 1
+            continue
 
+        # Build xlsr feature path
         xlsr_path = xlsr_features_dir / f"{session_id}.xlsr.pt"
 
         if xlsr_path.exists():
             skipped += 1
-            continue
-
-        if audio_path is None or not audio_path.exists():
-            print(f"\n⚠️  Audio file does not exist: {session_id}")
-            errors += 1
-            continue
+            continue  
 
         try:
             audio_np, _ = librosa.load(
@@ -96,24 +97,24 @@ def extract_features_from_csv(
             if len(audio_np) < max_length:
                 audio_np = np.pad(audio_np, (0, max_length - len(audio_np)), mode='constant')
             
-            
+            # Convert audio to tensor
             audio_tensor = torch.from_numpy(audio_np).unsqueeze(0).to(device)
-
+            
+            # Extract XLSR features
             emb, layerresult = ssl_model.extract_feat(audio_tensor)
 
-            layery, fullfeature = getAttenF(layerresult)
-            xlsr_feat = layery[:, -1, :].squeeze(0).cpu()  # Shape: (1024,)
-
-            # emb: (B, T', 1024)，这里 B=1
-
-            xlsr_features_list = [xlsr_feat]
-            xlsr_features = torch.stack(xlsr_features_list, dim=0).detach()  # Shape: (1, 1024)
-
+            # Pool and flatten features
+            layery, fullfeature = XLSR_Average_Pooling(layerresult)
+            
+            # Save features
+            xlsr_features = layery[:, -1, :].cpu().detach()  # Shape: (1, XLSR_FEATURE_DIM)
+            
+            # Save features to file
             torch.save(xlsr_features, xlsr_path)
             extracted += 1
 
         except Exception as e:
-            print(f"\n❌ Extraction failed for {session_id}: {e}")
+            print(f"\nError: Extraction failed for {session_id}: {e}")
             errors += 1
             continue
 
