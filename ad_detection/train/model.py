@@ -105,6 +105,62 @@ def XLSR_Average_Pooling(layerResult):
     fullfeature = torch.cat(fullf, dim=1)
     return layery, fullfeature
 
+
+def XLSR_Attentive_Statistic_Pooling(layerResult):
+    """
+    Attentive Statistics Pooling for XLSR layer outputs.
+    
+    For each layer, use attention mechanism to compute weighted mean and standard deviation.
+    This captures both the central tendency and variability of features across time.
+    
+    The attention weights are computed based on the feature magnitude (L2 norm),
+    which helps focus on more informative time frames.
+    
+    Args:
+        layerResult: List of layer outputs, each with shape (Time, Batch, Feature)
+    
+    Returns:
+        layery: Concatenated [mean, std] for all layers, shape (Batch, num_layers, XLSR_FEATURE_DIM*2)
+        fullfeature: Full features from all layers (concatenated)
+    """
+    poollayerResult = []
+    fullf = []
+    
+    for layer in layerResult:
+        # layer[0] = (Time=201, Batch=32, Feature=XLSR_FEATURE_DIM)
+        x = layer[0].transpose(0, 1)  # (T,B,F) → (B,T,F)
+        
+        # === Attention mechanism ===
+        # Compute attention weights based on feature magnitude
+        # Higher magnitude features are typically more informative
+        attention_logits = torch.norm(x, p=2, dim=-1, keepdim=True)  # (B,T,1) - L2 norm per time step
+        attention_weights = F.softmax(attention_logits, dim=1)  # (B,T,1) - Normalize over time
+        
+        # === Weighted mean ===
+        mean = torch.sum(x * attention_weights, dim=1, keepdim=True)  # (B,1,F)
+        
+        # === Weighted standard deviation ===
+        # std = sqrt(E_w[(x - mean)^2]) where E_w is weighted expectation
+        variance = torch.sum(
+            attention_weights * (x - mean) ** 2,
+            dim=1,
+            keepdim=True
+        )  # (B,1,F)
+        std = torch.sqrt(variance.clamp(min=1e-8))  # (B,1,F), clamp to avoid NaN
+        
+        # === Concatenate mean and std ===
+        stats = torch.cat([mean, std], dim=-1)  # (B,1,XLSR_FEATURE_DIM*2)
+        poollayerResult.append(stats)
+        
+        # Full feature (same as average pooling)
+        x_full = x.view(x.size(0), -1, x.size(1), x.size(2))
+        fullf.append(x_full)
+    
+    layery = torch.cat(poollayerResult, dim=1)  # (B, num_layers, XLSR_FEATURE_DIM*2)
+    fullfeature = torch.cat(fullf, dim=1)
+    
+    return layery, fullfeature
+
 ############################################################
 
 

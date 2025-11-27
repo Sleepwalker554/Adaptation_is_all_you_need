@@ -5,7 +5,7 @@ import numpy as np
 from pathlib import Path
 from tqdm.auto import tqdm
 from typing import Union, Optional
-from model import SSLModel, XLSR_Average_Pooling
+from model import SSLModel, XLSR_Average_Pooling, XLSR_Attentive_Statistic_Pooling
 from config import SECOND_LENGTH
 
 
@@ -103,9 +103,13 @@ def extract_features_from_csv(
             # Extract XLSR features
             emb, layerresult = ssl_model.extract_feat(audio_tensor)
 
-            # Pool and flatten features
-            layery, fullfeature = XLSR_Average_Pooling(layerresult)
-            
+            # Average Pooling features
+            # XLSR_FEATURE_DIM = 1024
+            # layery, fullfeature = XLSR_Average_Pooling(layerresult)
+
+            # Attentive Statistics Pooling features
+            # XLSR_FEATURE_DIM = 2048
+            layery, fullfeature = XLSR_Attentive_Statistic_Pooling(layerresult)
             # Save features
             xlsr_features = layery[:, -1, :].cpu().detach()  # Shape: (1, XLSR_FEATURE_DIM)
             

@@ -18,7 +18,9 @@ FEAT_SEQ_LEN = 10      # Number of audio segments when extracting eGeMaps
 SAMPLING_RATE = 16000  # Audio sampling rate
 
 SECOND_LENGTH = 60     # XLSR extraction audio length (seconds)
-XLSR_FEATURE_DIM = 1024  # XLSR feature dimension (output from XLSR-53 model)
+XLSR_FEATURE_DIM = 2048  # XLSR feature dimension (output from XLSR-53 model)
+# XLSR Attentive Statistics Pooling = 2048
+# XLSR Average Pooling = 1024
 
 class ModelConfig:    
     def __init__(
