@@ -14,14 +14,11 @@ WARMUP_STEPS = 100
 WEIGHT_DECAY = 1e-2
 
 # ====== Model parameters ======
-#DIM_HIDDEN = 32, DROPOUT = 0.2, SECOND_LENGTH = 50  is the best configuration for ADReSS
-#DIM_HIDDEN = 24, DROPOUT = 0.2, SECOND_LENGTH = 55  is the best configuration for ADReSS
-########################################################
-#DIM_HIDDEN = 32, DROPOUT = 0.2, SECOND_LENGTH = 60  is the best configuration for ADReSS
-########################################################
+#DIM_HIDDEN = 28, DROPOUT = 0.2, SECOND_LENGTH = 60  is the best configuration for XLSR
+#DIM_HIDDEN = 14, DROPOUT = 0.2, SECOND_LENGTH = 60  is the best configuration for XLSR
 
 DIM_INPUT = 25
-DIM_HIDDEN = 32              # Network Hidden dimension
+DIM_HIDDEN = 14             # Network Hidden dimension
 DROPOUT = 0.2                # Dropout ratio
 RANDOM_SEEDS = [21, 42, 84, 168, 336]
 
