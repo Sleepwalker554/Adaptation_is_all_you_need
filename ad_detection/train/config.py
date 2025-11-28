@@ -29,7 +29,7 @@ RANDOM_SEEDS = [21, 42, 84, 168, 336]
 FEAT_SEQ_LEN = 10      # Number of audio segments when extracting eGeMaps
 
 # ====== XLSR features extraction parameters ======
-SECOND_LENGTH = 60     # XLSR extraction audio length (seconds)
+SECOND_LENGTH = 70     # XLSR extraction audio length (seconds)
 XLSR_FEATURE_DIM = 1024  # XLSR feature dimension (output from XLSR-53 model)
 # XLSR Attentive Statistics Pooling = 2048
 # XLSR Average Pooling = 1024

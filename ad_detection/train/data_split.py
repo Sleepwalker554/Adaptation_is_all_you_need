@@ -1,14 +1,8 @@
-"""
-Dataset splitting tool
-Used to create CSV files for training and validation sets
-"""
-
 import csv
 from pathlib import Path
 from random import Random
 from typing import Tuple, List, Dict, Optional
 from config import PROJECT_ROOT
-
 
 def create_train_val_split(
     raw_audio_dir: Path,

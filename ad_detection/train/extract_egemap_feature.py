@@ -96,8 +96,7 @@ def extract_egemaps_features_from_csv(csv_path: Path, raw_audio_dir: Path):
     )
     
     print(f"{len(dataset)} Audio Files")
-    print()
-    
+
     # Initialize OpenSMILE
     smile_lld = Smile(
         feature_set=FeatureSet.eGeMAPSv02,
@@ -169,6 +168,6 @@ def extract_egemaps_features_from_csv(csv_path: Path, raw_audio_dir: Path):
     
     print(f"\n============= Extraction completed! =============")
     print(f"Successfully extracted: {extracted} 个")
-    print(f"Skipped: {skipped} 个")
+    print(f"Skipped (Already Exists): {skipped} 个")
     print(f"Total: {len(dataset)} 个")
     print(f"Errors: {error} 个")
