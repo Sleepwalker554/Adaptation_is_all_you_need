@@ -60,7 +60,7 @@ class FeatureDataset(Dataset):
 
                 # Check if file exists
                 if not feature_path_abs.exists():
-                    print(f"⚠️  {self.feature_name} feature file does not exist: {feature_path_abs}")
+                    print(f"Error: {self.feature_name} feature file does not exist: {feature_path_abs}")
                     continue
 
                 # Load features
@@ -69,12 +69,12 @@ class FeatureDataset(Dataset):
                     
                     # Check for NaN and Inf
                     if torch.isnan(features).any() or torch.isinf(features).any():
-                        print(f"⚠️  Features contain NaN/Inf, skipping: {session_id}")
+                        print(f"Error: Features contain NaN/Inf, skipping: {session_id}")
                         continue
                      
                     # Verify shape
                     if features.shape != self.expected_shape:
-                        print(f"⚠️  Feature shape error {session_id}: {features.shape}, expected {self.expected_shape}")
+                        print(f"Error: Feature shape error {session_id}: {features.shape}, expected {self.expected_shape}")
                         continue
 
                     # Store data
@@ -83,17 +83,17 @@ class FeatureDataset(Dataset):
                     self.session_ids.append(session_id)
 
                 except Exception as e:
-                    print(f"❌ Loading features failed {session_id}: {e}")
+                    print(f"Error: Loading features failed {session_id}: {e}")
                     continue
 
         num_control = sum(1 for label in self.labels if label == 0)
         num_dementia = sum(1 for label in self.labels if label == 1)
 
         if len(self.features) == 0:
-            print(f"❌ Error: No {self.feature_name} feature files found!")
+            print(f"Error: No {self.feature_name} feature files found!")
             raise ValueError("Dataset is empty.")
 
-        print(f"✅ Loading completed: {len(self)} samples")
+        print(f"Loading completed: {len(self)} samples")
         print(f"   Control: {num_control}, Dementia: {num_dementia}")
 
     def __len__(self):

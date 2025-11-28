@@ -5,7 +5,7 @@ import numpy as np
 from pathlib import Path
 from tqdm.auto import tqdm
 from typing import Union, Optional
-from model import SSLModel, XLSR_Average_Pooling, XLSR_Attentive_Statistic_Pooling
+from model import SSLModel, XLSR_Average_Pooling
 from config import SECOND_LENGTH, SAMPLING_RATE
 
 
@@ -68,7 +68,7 @@ def extract_features_from_csv(
             audio_path = audio_path_mp3
         else:
             audio_path = None
-            print(f"\n⚠️  Audio file does not exist: {session_id}")
+            print(f"\nError: Audio file does not exist: {session_id}")
             errors += 1
             continue
 
@@ -92,8 +92,8 @@ def extract_features_from_csv(
             max_length = SAMPLING_RATE * SECOND_LENGTH
             if len(audio_np) > max_length:
                 audio_np = audio_np[:max_length]
-            if len(audio_np) < max_length:
-                audio_np = np.pad(audio_np, (0, max_length - len(audio_np)), mode='constant')
+            # if len(audio_np) < max_length:
+            #     audio_np = np.pad(audio_np, (0, max_length - len(audio_np)), mode='constant')
             
             # Convert audio to tensor
             audio_tensor = torch.from_numpy(audio_np).unsqueeze(0).to(device)
@@ -102,15 +102,11 @@ def extract_features_from_csv(
             # Extract XLSR embeddings
             emb, layerresult = ssl_model.extract_feat(audio_tensor)
 
-            # Average Pooling features
-            # XLSR_FEATURE_DIM = 1024
+            # Average pooling features (XLSR_FEATURE_DIM = 1024)
             layery, fullfeature = XLSR_Average_Pooling(layerresult)
 
-            # Attentive Statistics Pooling features
-            # XLSR_FEATURE_DIM = 2048
-            # layery, fullfeature = XLSR_Attentive_Statistic_Pooling(layerresult)
             # Save features
-            xlsr_features = layery[:, -1, :].cpu().detach()  # Shape: (1, XLSR_FEATURE_DIM)
+            xlsr_features = layery[:, -1, :].cpu().detach()
             
             # Save features to file
             torch.save(xlsr_features, xlsr_path)
