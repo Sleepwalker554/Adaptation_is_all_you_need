@@ -187,7 +187,7 @@ class ADModel(nn.Module):
         )
         self.down_proj_drop = nn.Dropout(config.dropout)
         self.down_proj_act = nn.ReLU()
-        
+
         # 3. Attention pooling + output layer
         self.pool_ad = PoolAttFF(config, out_dim=2)  # Binary classification
     
@@ -206,7 +206,7 @@ class ADModel(nn.Module):
         x = self.down_proj(x)         # (B, L, H)
         x = self.down_proj_act(x)
         x = self.down_proj_drop(x)
-        
+
         # 3. Attention pooling + output
         out = self.pool_ad(x)          # (B, 2)
 

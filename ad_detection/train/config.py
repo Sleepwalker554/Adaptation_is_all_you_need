@@ -21,7 +21,7 @@ WEIGHT_DECAY = 1e-2
 ########################################################
 
 DIM_INPUT = 25
-DIM_HIDDEN = 24              # Network Hidden dimension
+DIM_HIDDEN = 32              # Network Hidden dimension
 DROPOUT = 0.2                # Dropout ratio
 RANDOM_SEEDS = [21, 42, 84, 168, 336]
 
@@ -59,4 +59,3 @@ class ModelConfig:
 
 # Default configuration
 DEFAULT_CONFIG = ModelConfig()
-
