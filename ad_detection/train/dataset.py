@@ -2,7 +2,9 @@ import csv
 from pathlib import Path
 import torch
 from torch.utils.data import Dataset
-from config import FEAT_SEQ_LEN, XLSR_FEATURE_DIM, PROJECT_ROOT
+from config import FEAT_SEQ_LEN, XLSR_FEATURE_DIM, PROJECT_ROOT, XLSR_SEGMENT_LEN, BATCH_SIZE, NUM_WORKERS
+
+
 class FeatureDataset(Dataset):
     """
     Load data from CSV, preload features to memory
@@ -25,7 +27,7 @@ class FeatureDataset(Dataset):
         if xlsr:
             self.feature_path_key = 'xlsr_path'
             self.feature_name = 'XLSR'
-            self.expected_shape = (1, XLSR_FEATURE_DIM)
+            self.expected_shape = (XLSR_SEGMENT_LEN, XLSR_FEATURE_DIM)
         else:
             self.feature_path_key = 'egemaps_path'
             self.feature_name = 'eGeMAPS'
@@ -51,7 +53,7 @@ class FeatureDataset(Dataset):
                 feature_path = row[self.feature_path_key]
                 ad = int(row['ad'])
 
-                # 根据特征类型确定路径
+                # Determine the path based on the feature type
                 if self.xlsr:
                     csv_dir = Path(self.csv_path).parent
                     feature_path_abs = (csv_dir / feature_path).resolve()
@@ -94,8 +96,9 @@ class FeatureDataset(Dataset):
             raise ValueError("Dataset is empty.")
 
         print(f"Loading completed: {len(self)} samples")
-        print(f"   Control: {num_control}, Dementia: {num_dementia}")
-
+        print(f"Control: {num_control}, Dementia: {num_dementia}")
+        print("\n")
+        
     def __len__(self):
         return len(self.features)
 
@@ -105,7 +108,7 @@ class FeatureDataset(Dataset):
             index: sample index
 
         Returns:
-            features: eGeMAPS features (FEAT_SEQ_LEN, 25) or XLSR features (1, XLSR_FEATURE_DIM)
+            features: eGeMAPS features (FEAT_SEQ_LEN, 25) or XLSR features (XLSR_SEGMENT_LEN, XLSR_FEATURE_DIM)
             label: 0 (Control) or 1 (Dementia)
         """
         features = self.features[index]
@@ -118,53 +121,39 @@ class FeatureDataset(Dataset):
 
 
 def create_dataloaders(
-        train_csv: Path,
-        val_csv: Path,
-        batch_size: int = 32,
-        num_workers: int = 4,
+        data_csv: Path,
+        batch_size: int = BATCH_SIZE,
+        num_workers: int = NUM_WORKERS,
         xlsr: bool = False,
 ):
     """
     Args:
-        train_csv: Training set CSV path
-        val_csv: Validation set CSV path
+        data_csv: Dataset set CSV path
         batch_size: Batch size
         num_workers: Number of worker processes
         xlsr: True to use XLSR features, False to use eGeMAPS features
 
     Returns:
-        train_loader: Training set DataLoader
-        val_loader: Validation set DataLoader
+        data_loader: DataLoader
     """
     from torch.utils.data import DataLoader
 
     feature_name = "XLSR" if xlsr else "eGeMAPS"
 
-    # 创建数据集
-    print(f"============= Creating training set ({feature_name} features) =============")
+    # Create Dataset
     try:
-        train_dataset = FeatureDataset(train_csv, xlsr=xlsr)
+        dataset = FeatureDataset(data_csv, xlsr=xlsr)
     except ValueError as e:
-        print(f"\n❌ Loading training set failed: {e}")
+        print(f"\nError: Loading data set failed: {e}")
         raise
-
-    print(f"\n============= Creating validation set ({feature_name} features) =============")
-    try:
-        val_dataset = FeatureDataset(val_csv, xlsr=xlsr)
-    except ValueError as e:
-        print(f"\n❌ 验证集加载失败: {e}")
-        raise
-    print()
 
     # Check if datasets are empty
-    if len(train_dataset) == 0:
-        raise ValueError(f"Training set is empty!")
-    if len(val_dataset) == 0:
-        raise ValueError(f"Validation set is empty!")
-
+    if len(dataset) == 0:
+        raise ValueError(f"\nError: Dataset is empty!")
+    
     # Create DataLoader
-    train_loader = DataLoader(
-        train_dataset,
+    data_loader = DataLoader(
+        dataset,
         batch_size=batch_size,
         shuffle=True,  # Shuffle training set
         num_workers=num_workers,
@@ -172,13 +161,4 @@ def create_dataloaders(
         pin_memory=True,  # Speed up GPU transfer
     )
 
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=batch_size,
-        shuffle=False,  # Do not shuffle validation set
-        num_workers=num_workers,
-        persistent_workers=True if num_workers > 0 else False,
-        pin_memory=True,
-    )
-
-    return train_loader, val_loader
+    return data_loader

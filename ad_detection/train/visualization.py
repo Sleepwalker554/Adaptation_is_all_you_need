@@ -1,13 +1,8 @@
-"""
-Visualization utilities for training metrics.
-
-Simple and reusable plotting functions for training visualization.
-"""
-
 import matplotlib.pyplot as plt
 from typing import List, Optional, Tuple
 from pathlib import Path
-
+plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'SimHei', 'DejaVu Sans']
+plt.rcParams['axes.unicode_minus'] = False
 
 def plot_training_curves(
     epochs: List[int],

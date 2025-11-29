@@ -211,15 +211,3 @@ class ADModel(nn.Module):
         out = self.pool_ad(x)          # (B, 2)
 
         return out
-
-
-def create_model(config: ModelConfig = None) -> ADModel:
-    """
-    Args:
-        config: Model configuration (optional, defaults to DEFAULT_CONFIG)
-    """
-    if config is None:
-        from config import DEFAULT_CONFIG
-        config = DEFAULT_CONFIG
-    
-    return ADModel(config)

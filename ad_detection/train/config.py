@@ -12,6 +12,7 @@ BATCH_SIZE = 32
 LEARNING_RATE = 3e-3         #Best learning rate is 3e-3
 WARMUP_STEPS = 100
 WEIGHT_DECAY = 1e-2
+TRAIN_SET_RATTIO = 0.8
 
 # ====== Model parameters ======
 #DIM_HIDDEN = 28, DROPOUT = 0.2, SECOND_LENGTH = 60  is the best configuration for XLSR
@@ -28,6 +29,7 @@ FEAT_SEQ_LEN = 10      # Number of audio segments when extracting eGeMaps
 # ====== XLSR features extraction parameters ======
 SECOND_LENGTH = 60     # XLSR extraction audio length (seconds)
 XLSR_FEATURE_DIM = 1024  # XLSR feature dimension (output from XLSR-53 model)
+XLSR_SEGMENT_LEN = 1  #XLSR segment length, average pooling = 1
 
 # ====== Data loading parameters ======
 NUM_WORKERS = 4
