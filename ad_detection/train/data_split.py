@@ -12,7 +12,7 @@ def create_train_val_split(
     train_set_ratio: float = TRAIN_SET_RATTIO,
     random_seed: int = RANDOM_SEED,
     dataset_name: Optional[str] = "Unknown Dataset",
-    xlsr: bool = True,
+    xlsr: bool = False,
 ) -> Tuple[Path, Path]:
     """
     Create training and validation CSV files

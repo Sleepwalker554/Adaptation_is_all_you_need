@@ -1,0 +1,211 @@
+"""
+Training functions for AD detection models
+"""
+import torch
+import torch.nn.functional as F
+from pathlib import Path
+from config import ModelConfig, DEFAULT_CONFIG, LEARNING_RATE, MAX_EPOCHS, WEIGHT_DECAY, XLSR_FEATURE_DIM
+from model import ADModel
+
+
+def train_one_epoch(model, train_loader, optimizer, device):
+    """Train for one epoch"""
+    model.train()
+    total_loss = 0
+    correct = 0
+    total = 0
+
+    for features, labels in train_loader:
+        features = features.to(device)
+        labels = labels.to(device)
+
+        # Forward pass
+        logits = model(features)
+        loss = F.cross_entropy(logits, labels)
+
+        # Backward pass
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        # Statistics
+        total_loss += loss.item()
+        predictions = torch.argmax(logits, dim=1)
+        correct += (predictions == labels).sum().item()
+        total += labels.size(0)
+
+    avg_loss = total_loss / len(train_loader)
+    accuracy = correct / total
+    return avg_loss, accuracy
+
+
+def validate(model, val_loader, device):
+    """Validate model and compute detailed metrics"""
+    model.eval()
+    total_loss = 0
+    correct = 0
+    total = 0
+
+    # For per-class metrics (0: Control, 1: Dementia)
+    control_correct = 0
+    control_total = 0
+    dementia_correct = 0
+    dementia_total = 0
+
+    # For F1 score
+    true_positives = 0
+    false_positives = 0
+    false_negatives = 0
+
+    with torch.no_grad():
+        for features, labels in val_loader:
+            features = features.to(device)
+            labels = labels.to(device)
+
+            # Forward pass
+            logits = model(features)
+            loss = F.cross_entropy(logits, labels)
+            predictions = torch.argmax(logits, dim=1)
+
+            # Overall statistics
+            total_loss += loss.item()
+            correct += (predictions == labels).sum().item()
+            total += labels.size(0)
+
+            # Per-class accuracy
+            for pred, label in zip(predictions, labels):
+                if label == 0:  # Control
+                    control_total += 1
+                    if pred == label:
+                        control_correct += 1
+                else:  # Dementia
+                    dementia_total += 1
+                    if pred == label:
+                        dementia_correct += 1
+
+                # F1 score components (Dementia as positive class)
+                if pred == 1 and label == 1:
+                    true_positives += 1
+                elif pred == 1 and label == 0:
+                    false_positives += 1
+                elif pred == 0 and label == 1:
+                    false_negatives += 1
+
+    avg_loss = total_loss / len(val_loader)
+    accuracy = correct / total
+
+    # Per-class accuracy
+    control_acc = control_correct / control_total if control_total > 0 else 0
+    dementia_acc = dementia_correct / dementia_total if dementia_total > 0 else 0
+
+    # F1 score
+    precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0
+    recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0
+    f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+
+    return avg_loss, accuracy, control_acc, dementia_acc, f1_score
+
+
+def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
+    """
+    Training pipeline
+
+    Args:
+        seed: Random seed
+        train_loader: Training data loader
+        val_loader: Validation data loader
+        output_dir: Directory to save models
+        device: Device to train on (cpu/cuda/mps)
+        xlsr: Whether using XLSR features (True) or eGeMAPS features (False)
+
+    Returns:
+        seed: The seed used
+        best_metrics: Dictionary of best validation metrics
+        training_history: Dictionary of training history (epochs, losses, accuracies)
+    """
+    # Set random seed
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+
+    # Create save directory
+    seed_dir = Path(output_dir) / f"seed_{seed}"
+    seed_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create model with appropriate input dimension
+    if xlsr:
+        model_config = ModelConfig(
+            dim_input=XLSR_FEATURE_DIM,
+            dim_hidden=DEFAULT_CONFIG.dim_hidden,
+            dropout=DEFAULT_CONFIG.dropout
+        )
+    else:
+        model_config = DEFAULT_CONFIG
+
+    model = ADModel(model_config).to(device)
+
+    # Create optimizer
+    optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+
+    # Training history
+    train_losses = []
+    train_accs = []
+    val_losses = []
+    val_accs = []
+    epochs_list = []
+
+    # Early stopping
+    best_val_acc = 0
+    best_metrics = {}
+    patience = 10
+    patience_counter = 0
+
+    # Training loop
+    for epoch in range(MAX_EPOCHS):
+        # Train
+        train_loss, train_acc = train_one_epoch(model, train_loader, optimizer, device)
+        train_losses.append(train_loss)
+        train_accs.append(train_acc)
+
+        # Validate
+        val_loss, val_acc, control_acc, dementia_acc, f1 = validate(model, val_loader, device)
+        val_losses.append(val_loss)
+        val_accs.append(val_acc)
+        epochs_list.append(epoch)
+
+        # Save best model
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            best_metrics = {
+                'val_acc': val_acc,
+                'val_loss': val_loss,
+                'control_acc': control_acc,
+                'dementia_acc': dementia_acc,
+                'f1_score': f1
+            }
+            patience_counter = 0
+            torch.save(model.state_dict(), seed_dir / 'best.pth')
+        else:
+            patience_counter += 1
+
+        # Early stopping check
+        if patience_counter >= patience:
+            break
+
+    # Print final results
+    print(f"Seed {seed}: Val Acc={best_metrics['val_acc']*100:.2f}%, "
+          f"Control Acc={best_metrics['control_acc']*100:.2f}%, "
+          f"Dementia Acc={best_metrics['dementia_acc']*100:.2f}%, "
+          f"F1={best_metrics['f1_score']:.4f}, "
+          f"Val Loss={best_metrics['val_loss']:.4f}")
+
+    # Return training history along with best metrics
+    training_history = {
+        'epochs': epochs_list,
+        'train_losses': train_losses,
+        'train_accs': train_accs,
+        'val_losses': val_losses,
+        'val_accs': val_accs
+    }
+
+    return seed, best_metrics, training_history

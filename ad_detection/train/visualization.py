@@ -10,27 +10,27 @@ def plot_training_curves(
     val_loss: List[float],
     train_acc: List[float],
     val_acc: List[float],
-    train_color: str = '#27F5EE',
-    val_color: str = '#B727F5',
     title_prefix: Optional[str] = None,
     save_path: Optional[Path] = None
 ):
     """
     Plot training and validation loss and accuracy curves
-    
+
     Args:
         epochs: epoch list
         train_loss, val_loss: Training/validation loss
         train_acc, val_acc: Training/validation accuracy (0-1)
-        train_color: Training curve color (default cyan)
-        val_color: Validation curve color (default purple)
         title_prefix: Title prefix (e.g. "Seed 42")
         save_path: Save path (optional)
     """
+    # Define colors inside the function
+    train_color = '#2E86AB'
+    val_color = '#A23B72'
+
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
-    
+
     title_base = f"{title_prefix}: " if title_prefix else ""
-    
+
     # Loss curve
     ax1.plot(epochs, train_loss, 'o-', label='Train', color=train_color, linewidth=2, markersize=4)
     ax1.plot(epochs, val_loss, 's-', label='Val', color=val_color, linewidth=2, markersize=4)
