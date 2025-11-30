@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from pathlib import Path
 from tqdm import tqdm
 from config import LEARNING_RATE, MAX_EPOCHS, WEIGHT_DECAY, XLSR_DIM_HIDDEN, EGEMAPS_DIM_HIDDEN, XLSR_DROPOUT, EGEMAPS_DROPOUT, EGEMAPS_DIM_INPUT, XLSR_DIM_INPUT
-from model import ADModel
+from model import AD_XLSR_Model, AD_EGE_Model
 
 def train_one_epoch(model, train_loader, optimizer, device, epoch=None):
     """Train for one epoch"""
@@ -165,13 +165,11 @@ def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
 
     # Create model for xlsr or egemaps features
     if xlsr:
-        model = ADModel(dim_input=XLSR_DIM_INPUT,
-                        dim_hidden=XLSR_DIM_HIDDEN,
-                        dropout=XLSR_DROPOUT).to(device)
+        model = AD_XLSR_Model(dropout=XLSR_DROPOUT).to(device)
     else:
-        model = ADModel(dim_input=EGEMAPS_DIM_INPUT,
-                        dim_hidden=EGEMAPS_DIM_HIDDEN,
-                        dropout=EGEMAPS_DROPOUT).to(device) 
+        model = AD_EGE_Model(dim_input=EGEMAPS_DIM_INPUT,
+                             dim_hidden=EGEMAPS_DIM_HIDDEN,
+                             dropout=EGEMAPS_DROPOUT).to(device) 
 
     # Create optimizer
     optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)

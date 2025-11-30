@@ -164,30 +164,135 @@ class PoolAttFF(nn.Module):
         return out
 
 
-class ADModel(nn.Module):
+############################################################
+# Model classes for XLSR and eGeMAPS features
+############################################################
+
+class AD_XLSR_Model(nn.Module):
     """
-    1. BatchNorm normalization
-    2. Down projection to hidden dimension
-    3. Attention pooling
-    4. Output 2-class logits
+    AD detection model specifically for XLSR features (1024-dim)
+    
+    Architecture:
+        1. BatchNorm normalization
+        2. Progressive 5-layer down projection: 1024→512→256→128→64→32
+        3. Attention pooling
+        4. Output 2-class logits
     
     Input:
-        - x: (batch_size, 10, 25) - 10 time segments, each with 25-dim eGeMAPS features
+        - x: (batch_size, seq_len, 1024) - XLSR features
+        - mask: (batch_size, seq_len) - attention mask (optional)
     
     Output:
         - logits: (batch_size, 2) - Control and Dementia logits
     """
  
-    def __init__(self, dim_input, dim_hidden, dropout):
+    def __init__(self, dropout=0.2):
+        super().__init__()
+        self.dropout = dropout
+        
+        # 1. BatchNorm normalization
+        self.norm = nn.BatchNorm1d(1024)
+        
+        # 2. Progressive 5-layer down projection: 1024 → 512 → 256 → 128 → 64 → 32
+        self.down_proj1 = nn.Linear(1024, 512)
+        self.bn1 = nn.BatchNorm1d(512)
+        
+        self.down_proj2 = nn.Linear(512, 256)
+        self.bn2 = nn.BatchNorm1d(256)
+        
+        self.down_proj3 = nn.Linear(256, 128)
+        self.bn3 = nn.BatchNorm1d(128)
+        
+        self.down_proj4 = nn.Linear(128, 64)
+        self.bn4 = nn.BatchNorm1d(64)
+        
+        self.down_proj5 = nn.Linear(64, 32)
+        self.bn5 = nn.BatchNorm1d(32)
+        
+        self.dropout = nn.Dropout(dropout)
+
+        # 3. Attention pooling + output layer
+        self.pool_ad = PoolAttFF(
+            dim_hidden=32,
+            dropout=dropout,
+            out_dim=2)  # Binary classification
+    
+    def forward(self, x: Tensor, mask: Tensor = None) -> Tensor:
+        """
+        Args:
+            x: (batch_size, seq_len, 1024) - XLSR features
+            mask: (batch_size, seq_len) - attention mask (1=real, 0=padding), optional
+        
+        Returns:
+            out: (batch_size, 2) - AD classification logits
+        """
+        # 1. BatchNorm: (B, L, 1024) -> (B, 1024, L) -> normalize -> (B, L, 1024)
+        x = self.norm(x.permute(0, 2, 1)).permute(0, 2, 1)
+        
+        # 2. Progressive down projection
+        # Layer 1: 1024 → 512
+        x = self.down_proj1(x)
+        x = self.bn1(x.permute(0, 2, 1)).permute(0, 2, 1)
+        x = F.relu(x)
+        # x = self.dropout1(x)
+        
+        # Layer 2: 512 → 256
+        x = self.down_proj2(x)
+        x = self.bn2(x.permute(0, 2, 1)).permute(0, 2, 1)
+        x = F.relu(x)
+        # x = self.dropout2(x)
+        
+        # Layer 3: 256 → 128
+        x = self.down_proj3(x)
+        x = self.bn3(x.permute(0, 2, 1)).permute(0, 2, 1)
+        x = F.relu(x)
+        # x = self.dropout3(x)
+        
+        # Layer 4: 128 → 64
+        x = self.down_proj4(x)
+        x = self.bn4(x.permute(0, 2, 1)).permute(0, 2, 1)
+        x = F.relu(x)
+        x = self.dropout(x)
+        
+        # Layer 5: 64 → 32
+        x = self.down_proj5(x)
+        x = self.bn5(x.permute(0, 2, 1)).permute(0, 2, 1)
+        x = F.relu(x)
+        x = self.dropout(x)
+
+        # 3. Attention pooling + output (with mask)
+        out = self.pool_ad(x, mask)   # (B, 2)
+
+        return out
+
+
+class AD_EGE_Model(nn.Module):
+    """
+    AD detection model specifically for eGeMAPS features (25-dim)
+    
+    Architecture:
+        1. BatchNorm normalization
+        2. Single-layer down projection to hidden dimension
+        3. Attention pooling
+        4. Output 2-class logits
+    
+    Input:
+        - x: (batch_size, 10, 25) - eGeMAPS features
+    
+    Output:
+        - logits: (batch_size, 2) - Control and Dementia logits
+    """
+ 
+    def __init__(self, dim_input=25, dim_hidden=14, dropout=0.2):
         super().__init__()
         self.dim_input = dim_input
         self.dim_hidden = dim_hidden
         self.dropout = dropout
         
-        # 1. BatchNorm normalization (on feature dimension)
+        # 1. BatchNorm normalization
         self.norm = nn.BatchNorm1d(self.dim_input)
         
-        # 2. Down projection layer: 25(eGeMAPS) or XLSR_FEATURE_DIM(XLSR) -> dim_hidden (default)
+        # 2. Single-layer down projection
         self.down_proj = nn.Linear(
             in_features=self.dim_input,
             out_features=self.dim_hidden,
@@ -204,8 +309,8 @@ class ADModel(nn.Module):
     def forward(self, x: Tensor, mask: Tensor = None) -> Tensor:
         """
         Args:
-            x: (batch_size, seq_len, feature_dim) - eGeMAPS or XLSR features
-            mask: (batch_size, seq_len) - attention mask (1=real, 0=padding), optional
+            x: (batch_size, seq_len, 25) - eGeMAPS features
+            mask: Not used for eGeMAPS (no padding needed)
         
         Returns:
             out: (batch_size, 2) - AD classification logits
@@ -214,11 +319,11 @@ class ADModel(nn.Module):
         x = self.norm(x.permute(0, 2, 1)).permute(0, 2, 1)
         
         # 2. Down projection to hidden dimension
-        x = self.down_proj(x)         # (B, L, H)
+        x = self.down_proj(x)
         x = self.down_proj_act(x)
         x = self.down_proj_drop(x)
 
-        # 3. Attention pooling + output (with mask)
+        # 3. Attention pooling + output
         out = self.pool_ad(x, mask)   # (B, 2)
 
         return out

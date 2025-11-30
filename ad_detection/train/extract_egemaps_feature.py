@@ -95,7 +95,7 @@ def extract_egemaps_features_from_csv(csv_path: Path, raw_audio_dir: Path):
         persistent_workers=False,
     )
     
-    print(f"\n============= Extraction eGeMaps features completed! =============")
+    print(f"\n============= Extraction eGeMaps features =============")
     print(f"{len(dataset)} Audio Files")
 
     # Initialize OpenSMILE

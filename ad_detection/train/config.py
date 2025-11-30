@@ -7,7 +7,7 @@ CONFIG_FILE = Path(__file__).resolve()
 PROJECT_ROOT = CONFIG_FILE.parent.parent
 
 # ====== Training parameters ======
-MAX_EPOCHS = 50              
+MAX_EPOCHS = 100              
 BATCH_SIZE = 32              
 LEARNING_RATE = 3e-3         #Best learning rate is 3e-3
 WARMUP_STEPS = 100
@@ -15,10 +15,11 @@ WEIGHT_DECAY = 1e-2
 TRAIN_SET_RATTIO = 0.8
 
 # ====== Model parameters ======
+# XLSR_DIM_HIDDEN = 32 perform well
 EGEMAPS_DIM_INPUT = 25
 XLSR_DIM_INPUT = 1024               # XLSR feature dimension (output from XLSR-53 model)
 EGEMAPS_DIM_HIDDEN = 14             # eGeMaps Network Hidden dimension
-XLSR_DIM_HIDDEN = 32                # XLSR Network Hidden dimension
+XLSR_DIM_HIDDEN = 26                # XLSR Network Hidden dimension
 XLSR_DROPOUT = 0.2                  # XLSR Dropout ratio
 EGEMAPS_DROPOUT = 0.2               # eGeMaps Dropout ratio
 RANDOM_SEEDS = [21, 42, 84, 168, 336]
