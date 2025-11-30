@@ -1,12 +1,8 @@
-"""
-Training functions for AD detection models
-"""
 import torch
 import torch.nn.functional as F
 from pathlib import Path
-from config import LEARNING_RATE, MAX_EPOCHS, WEIGHT_DECAY, XLSR_DIM_HIDDEN, EGEMAPS_DIM_HIDDEN, DROPOUT, EGEMAPS_DIM_INPUT, XLSR_DIM_INPUT
+from config import LEARNING_RATE, MAX_EPOCHS, WEIGHT_DECAY, XLSR_DIM_HIDDEN, EGEMAPS_DIM_HIDDEN, XLSR_DROPOUT, EGEMAPS_DROPOUT, EGEMAPS_DIM_INPUT, XLSR_DIM_INPUT
 from model import ADModel
-
 
 def train_one_epoch(model, train_loader, optimizer, device):
     """Train for one epoch"""
@@ -132,15 +128,15 @@ def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
     seed_dir = Path(output_dir) / f"seed_{seed}"
     seed_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create model with appropriate input dimension
+    # Create model for xlsr or egemaps features
     if xlsr:
         model = ADModel(dim_input=XLSR_DIM_INPUT,
                         dim_hidden=XLSR_DIM_HIDDEN,
-                        dropout=DROPOUT).to(device)
+                        dropout=EGEMAPS_DROPOUT).to(device)
     else:
         model = ADModel(dim_input=EGEMAPS_DIM_INPUT,
                         dim_hidden=EGEMAPS_DIM_HIDDEN,
-                        dropout=DROPOUT).to(device) 
+                        dropout=XLSR_DROPOUT).to(device) 
 
     # Create optimizer
     optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
@@ -191,11 +187,12 @@ def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
             break
 
     # Print final results
-    print(f"Seed {seed}: Val Acc={best_metrics['val_acc']*100:.2f}%, "
-          f"Control Acc={best_metrics['control_acc']*100:.2f}%, "
-          f"Dementia Acc={best_metrics['dementia_acc']*100:.2f}%, "
+    print(f"Seed {seed}:\n"
+          f"Val Acc={best_metrics['val_acc']*100:.2f}%, "
           f"F1={best_metrics['f1_score']:.4f}, "
-          f"Val Loss={best_metrics['val_loss']:.4f}")
+          f"Val Loss={best_metrics['val_loss']:.4f}\n"
+          f"Control Acc={best_metrics['control_acc']*100:.2f}%, "
+          f"Dementia Acc={best_metrics['dementia_acc']*100:.2f}%")
 
     # Return training history along with best metrics
     training_history = {
