@@ -132,11 +132,11 @@ def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
     if xlsr:
         model = ADModel(dim_input=XLSR_DIM_INPUT,
                         dim_hidden=XLSR_DIM_HIDDEN,
-                        dropout=EGEMAPS_DROPOUT).to(device)
+                        dropout=XLSR_DROPOUT).to(device)
     else:
         model = ADModel(dim_input=EGEMAPS_DIM_INPUT,
                         dim_hidden=EGEMAPS_DIM_HIDDEN,
-                        dropout=XLSR_DROPOUT).to(device) 
+                        dropout=EGEMAPS_DROPOUT).to(device) 
 
     # Create optimizer
     optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
