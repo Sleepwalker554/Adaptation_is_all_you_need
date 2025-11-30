@@ -5,7 +5,7 @@ import numpy as np
 from pathlib import Path
 from tqdm.auto import tqdm
 from typing import Union, Optional
-from model import SSLModel, XLSR_Average_Pooling
+from model import SSLModel
 from config import SECOND_LENGTH, SAMPLING_RATE
 
 

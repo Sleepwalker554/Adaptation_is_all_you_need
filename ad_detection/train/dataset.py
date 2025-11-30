@@ -1,7 +1,7 @@
 import csv
 from pathlib import Path
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from config import FEAT_SEQ_LEN, PROJECT_ROOT, BATCH_SIZE, NUM_WORKERS, XLSR_MAX_TIME_STEPS, XLSR_DIM_INPUT
 
 class FeatureDataset(Dataset):
@@ -166,8 +166,6 @@ def create_dataloaders(
     Returns:
         data_loader: DataLoader
     """
-    from torch.utils.data import DataLoader
-
     feature_name = "XLSR" if xlsr else "eGeMAPS"
 
     # Create Dataset
