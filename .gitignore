@@ -16,6 +16,8 @@ ad_detection/train/train_notebook/XLSR/XLSR-fine_tuning.ipynb
 *.pth
 *.ckpt
 
+data/raw/*
+
 # logs
 ad_detection/train/train_notebook/XLSR/lightning_logs
 ad_detection/train/train_notebook/eGeMap/lightning_logs
