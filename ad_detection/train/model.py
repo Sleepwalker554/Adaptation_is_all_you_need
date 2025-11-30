@@ -134,10 +134,11 @@ class PoolAttFF(nn.Module):
         self.activation = F.relu
         self.dropout = nn.Dropout(dropout)
     
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor, mask: Tensor = None) -> Tensor:
         """        
         Args:
             x: (batch_size, seq_len, hidden_dim)
+            mask: (batch_size, seq_len) - 1 for real data, 0 for padding (optional)
         
         Returns:
             out: (batch_size, out_dim)
@@ -147,6 +148,11 @@ class PoolAttFF(nn.Module):
         
         # Transpose and apply softmax: (B, L, 1) -> (B, 1, L) -> softmax
         att = att.transpose(2, 1)  # (B, 1, L)
+        
+        # Apply mask: set padding positions to -inf so they become 0 after softmax
+        if mask is not None:
+            att = att.masked_fill(mask.unsqueeze(1) == 0, float('-inf'))
+        
         att = F.softmax(att, dim=2)  # Normalize on sequence dimension
         
         # att: (B, 1, L), x: (B, L, H) -> (B, 1, H) -> (B, H)
@@ -195,10 +201,11 @@ class ADModel(nn.Module):
             dropout=self.dropout,
             out_dim=2)  # Binary classification
     
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor, mask: Tensor = None) -> Tensor:
         """
         Args:
-            x: (batch_size, 10, 25) - eGeMAPS features / XLSR features
+            x: (batch_size, seq_len, feature_dim) - eGeMAPS or XLSR features
+            mask: (batch_size, seq_len) - attention mask (1=real, 0=padding), optional
         
         Returns:
             out: (batch_size, 2) - AD classification logits
@@ -211,7 +218,7 @@ class ADModel(nn.Module):
         x = self.down_proj_act(x)
         x = self.down_proj_drop(x)
 
-        # 3. Attention pooling + output
-        out = self.pool_ad(x)          # (B, 2)
+        # 3. Attention pooling + output (with mask)
+        out = self.pool_ad(x, mask)   # (B, 2)
 
         return out

@@ -110,7 +110,7 @@ def extract_features_from_csv(
 
             last_layer = layerresult[-1][0]  # (Time, Batch=1, Feature=1024)
             last_layer = last_layer.transpose(0, 1)  # (Batch=1, Time, Feature=1024)
-            xlsr_features = last_layer.squeeze(0).cpu().detach()  # (Time, 1024) -> (1024,)
+            xlsr_features = last_layer.squeeze(0).cpu().detach()  # (Batch=1, Time, 1024) -> (Time, 1024)
             
             # Save features to file
             torch.save(xlsr_features, xlsr_path)

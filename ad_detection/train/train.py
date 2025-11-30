@@ -16,12 +16,20 @@ def train_one_epoch(model, train_loader, optimizer, device, epoch=None):
     desc = f"Epoch {epoch} - Training" if epoch is not None else "Training"
     pbar = tqdm(train_loader, desc=desc, leave=False)
     
-    for features, labels in pbar:
-        features = features.to(device)
-        labels = labels.to(device)
-
-        # Forward pass
-        logits = model(features)
+    for batch_data in pbar:
+        # Handle both formats: with mask (XLSR) and without mask (eGeMAPS)
+        if len(batch_data) == 3:
+            features, labels, masks = batch_data
+            features = features.to(device)
+            labels = labels.to(device)
+            masks = masks.to(device)
+            logits = model(features, masks)
+        else:
+            features, labels = batch_data
+            features = features.to(device)
+            labels = labels.to(device)
+            logits = model(features)
+        
         loss = F.cross_entropy(logits, labels)
 
         # Backward pass
@@ -68,12 +76,20 @@ def validate(model, val_loader, device, epoch=None):
     pbar = tqdm(val_loader, desc=desc, leave=False)
 
     with torch.no_grad():
-        for features, labels in pbar:
-            features = features.to(device)
-            labels = labels.to(device)
-
-            # Forward pass
-            logits = model(features)
+        for batch_data in pbar:
+            # Handle both formats: with mask (XLSR) and without mask (eGeMAPS)
+            if len(batch_data) == 3:
+                features, labels, masks = batch_data
+                features = features.to(device)
+                labels = labels.to(device)
+                masks = masks.to(device)
+                logits = model(features, masks)
+            else:
+                features, labels = batch_data
+                features = features.to(device)
+                labels = labels.to(device)
+                logits = model(features)
+            
             loss = F.cross_entropy(logits, labels)
             predictions = torch.argmax(logits, dim=1)
 

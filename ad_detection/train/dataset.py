@@ -120,21 +120,34 @@ class FeatureDataset(Dataset):
 
 
 def collate_fn_xlsr(batch):
-    """Padding XLSR features to fixed length"""
+    """Padding XLSR features to fixed length with attention mask"""
     features_list = [f for f, l in batch]
     labels_list = [l for f, l in batch]
     
     padded_features = []
+    masks = []  # Attention mask: 1 for real data, 0 for padding
+    
     for features in features_list:
         seq_len = features.shape[0]
+        
+        # Create mask: 1 for real data, 0 for padding
+        mask = torch.ones(XLSR_MAX_TIME_STEPS)
+        
         if seq_len > XLSR_MAX_TIME_STEPS:
             features = features[:XLSR_MAX_TIME_STEPS]
         elif seq_len < XLSR_MAX_TIME_STEPS:
             padding = torch.zeros(XLSR_MAX_TIME_STEPS - seq_len, features.shape[1])
             features = torch.cat([features, padding], dim=0)
+            mask[seq_len:] = 0  # Mark padding positions as 0
+        
         padded_features.append(features)
+        masks.append(mask)
     
-    return torch.stack(padded_features, dim=0), torch.tensor(labels_list, dtype=torch.long)
+    features_batch = torch.stack(padded_features, dim=0)  # (Batch, MaxTime, 1024)
+    labels_batch = torch.tensor(labels_list, dtype=torch.long)
+    masks_batch = torch.stack(masks, dim=0)  # (Batch, MaxTime)
+    
+    return features_batch, labels_batch, masks_batch
 
 
 def create_dataloaders(
