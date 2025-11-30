@@ -2,7 +2,7 @@ import csv
 from pathlib import Path
 import torch
 from torch.utils.data import Dataset
-from config import FEAT_SEQ_LEN, XLSR_FEATURE_DIM, PROJECT_ROOT, XLSR_SEGMENT_LEN, BATCH_SIZE, NUM_WORKERS
+from config import FEAT_SEQ_LEN, XLSR_DIM_INPUT, PROJECT_ROOT, XLSR_SEGMENT_LEN, BATCH_SIZE, NUM_WORKERS
 
 
 class FeatureDataset(Dataset):
@@ -27,7 +27,7 @@ class FeatureDataset(Dataset):
         if xlsr:
             self.feature_path_key = 'xlsr_path'
             self.feature_name = 'XLSR'
-            self.expected_shape = (XLSR_SEGMENT_LEN, XLSR_FEATURE_DIM)
+            self.expected_shape = (XLSR_SEGMENT_LEN, XLSR_DIM_INPUT)
         else:
             self.feature_path_key = 'egemaps_path'
             self.feature_name = 'eGeMAPS'

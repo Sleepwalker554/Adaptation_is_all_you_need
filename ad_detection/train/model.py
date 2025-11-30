@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor, nn
 import torch.nn.functional as F
-from config import ModelConfig, XLSR_FEATURE_DIM
+from config import XLSR_DIM_INPUT
 import fairseq
 
 ########################XLSR-53-300m####################################
@@ -26,7 +26,7 @@ class SSLModel(nn.Module):
         model, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([cp_path])
         self.model = model[0].to(device)
         self.device = device
-        self.out_dim = XLSR_FEATURE_DIM
+        self.out_dim = XLSR_DIM_INPUT  # XLSR_FEATURE_DIM
         self.freeze_xlsr = freeze_xlsr
         
         # Control whether to freeze model based on freeze_xlsr parameter
@@ -119,20 +119,20 @@ class PoolAttFF(nn.Module):
         out_dim: Output dimension (2 for AD binary classification)
     """
     
-    def __init__(self, config: ModelConfig, out_dim: int):
+    def __init__(self, dim_hidden, dropout, out_dim: int):
         super().__init__()
-        
-        self.config = config
+        self.dim_hidden = dim_hidden
+        self.out_dim = out_dim
         
         # Attention network: hidden -> 2*hidden -> 1 (attention weights)
-        self.linear1 = nn.Linear(config.dim_hidden, 2 * config.dim_hidden)
-        self.linear2 = nn.Linear(2 * config.dim_hidden, 1)
+        self.linear1 = nn.Linear(self.dim_hidden, 2 * self.dim_hidden)
+        self.linear2 = nn.Linear(2 * self.dim_hidden, 1)
         
         # Output mapping: hidden -> out_dim
-        self.linear3 = nn.Linear(config.dim_hidden, out_dim)
+        self.linear3 = nn.Linear(self.dim_hidden, out_dim)
         
         self.activation = F.relu
-        self.dropout = nn.Dropout(config.dropout)
+        self.dropout = nn.Dropout(dropout)
     
     def forward(self, x: Tensor) -> Tensor:
         """        
@@ -171,25 +171,29 @@ class ADModel(nn.Module):
     Output:
         - logits: (batch_size, 2) - Control and Dementia logits
     """
-    
-    def __init__(self, config: ModelConfig):
+ 
+    def __init__(self, dim_input, dim_hidden, dropout):
         super().__init__()
-        
-        self.config = config
+        self.dim_input = dim_input
+        self.dim_hidden = dim_hidden
+        self.dropout = dropout
         
         # 1. BatchNorm normalization (on feature dimension)
-        self.norm = nn.BatchNorm1d(config.dim_input)
+        self.norm = nn.BatchNorm1d(self.dim_input)
         
         # 2. Down projection layer: 25(eGeMAPS) or XLSR_FEATURE_DIM(XLSR) -> dim_hidden (default)
         self.down_proj = nn.Linear(
-            in_features=config.dim_input,
-            out_features=config.dim_hidden,
+            in_features=self.dim_input,
+            out_features=self.dim_hidden,
         )
-        self.down_proj_drop = nn.Dropout(config.dropout)
+        self.down_proj_drop = nn.Dropout(self.dropout)
         self.down_proj_act = nn.ReLU()
 
         # 3. Attention pooling + output layer
-        self.pool_ad = PoolAttFF(config, out_dim=2)  # Binary classification
+        self.pool_ad = PoolAttFF(
+            dim_hidden=self.dim_hidden,
+            dropout=self.dropout,
+            out_dim=2)  # Binary classification
     
     def forward(self, x: Tensor) -> Tensor:
         """

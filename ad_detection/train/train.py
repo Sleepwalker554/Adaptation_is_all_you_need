@@ -4,7 +4,7 @@ Training functions for AD detection models
 import torch
 import torch.nn.functional as F
 from pathlib import Path
-from config import ModelConfig, DEFAULT_CONFIG, LEARNING_RATE, MAX_EPOCHS, WEIGHT_DECAY, XLSR_FEATURE_DIM
+from config import LEARNING_RATE, MAX_EPOCHS, WEIGHT_DECAY, XLSR_DIM_HIDDEN, EGEMAPS_DIM_HIDDEN, DROPOUT, EGEMAPS_DIM_INPUT, XLSR_DIM_INPUT
 from model import ADModel
 
 
@@ -134,15 +134,13 @@ def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
 
     # Create model with appropriate input dimension
     if xlsr:
-        model_config = ModelConfig(
-            dim_input=XLSR_FEATURE_DIM,
-            dim_hidden=DEFAULT_CONFIG.dim_hidden,
-            dropout=DEFAULT_CONFIG.dropout
-        )
+        model = ADModel(dim_input=XLSR_DIM_INPUT,
+                        dim_hidden=XLSR_DIM_HIDDEN,
+                        dropout=DROPOUT).to(device)
     else:
-        model_config = DEFAULT_CONFIG
-
-    model = ADModel(model_config).to(device)
+        model = ADModel(dim_input=EGEMAPS_DIM_INPUT,
+                        dim_hidden=EGEMAPS_DIM_HIDDEN,
+                        dropout=DROPOUT).to(device) 
 
     # Create optimizer
     optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
