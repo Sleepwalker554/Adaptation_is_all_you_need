@@ -28,7 +28,7 @@ FEAT_SEQ_LEN = 10      # Number of audio segments when extracting eGeMaps
 
 # ====== XLSR features extraction parameters ======
 SECOND_LENGTH = 60     # XLSR extraction audio length (seconds)
-XLSR_SEGMENT_LEN = 1  #XLSR segment length, average pooling = 1
+XLSR_MAX_TIME_STEPS = 50 * SECOND_LENGTH  # XLSR time steps (approximately 50 steps/second, downsampling ratio ~320)
 
 # ====== Data loading parameters ======
 NUM_WORKERS = 4

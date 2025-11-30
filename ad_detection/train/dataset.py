@@ -2,8 +2,7 @@ import csv
 from pathlib import Path
 import torch
 from torch.utils.data import Dataset
-from config import FEAT_SEQ_LEN, XLSR_DIM_INPUT, PROJECT_ROOT, XLSR_SEGMENT_LEN, BATCH_SIZE, NUM_WORKERS
-
+from config import FEAT_SEQ_LEN, PROJECT_ROOT, BATCH_SIZE, NUM_WORKERS, XLSR_MAX_TIME_STEPS, XLSR_DIM_INPUT
 
 class FeatureDataset(Dataset):
     """
@@ -27,7 +26,7 @@ class FeatureDataset(Dataset):
         if xlsr:
             self.feature_path_key = 'xlsr_path'
             self.feature_name = 'XLSR'
-            self.expected_shape = (XLSR_SEGMENT_LEN, XLSR_DIM_INPUT)
+            # self.expected_shape = (XLSR_SEGMENT_LEN, XLSR_DIM_INPUT)
         else:
             self.feature_path_key = 'egemaps_path'
             self.feature_name = 'eGeMAPS'
@@ -75,9 +74,9 @@ class FeatureDataset(Dataset):
                         continue
                      
                     # Verify shape
-                    if features.shape != self.expected_shape:
-                        print(f"Error: Feature shape error {session_id}: {features.shape}, expected {self.expected_shape}")
-                        continue
+                    # if features.shape != self.expected_shape:
+                    #     print(f"Error: Feature shape error {session_id}: {features.shape}, expected {self.expected_shape}")
+                    #     continue
 
                     # Store data
                     self.features.append(features)
@@ -120,6 +119,24 @@ class FeatureDataset(Dataset):
         return self.session_ids[index]
 
 
+def collate_fn_xlsr(batch):
+    """Padding XLSR features to fixed length"""
+    features_list = [f for f, l in batch]
+    labels_list = [l for f, l in batch]
+    
+    padded_features = []
+    for features in features_list:
+        seq_len = features.shape[0]
+        if seq_len > XLSR_MAX_TIME_STEPS:
+            features = features[:XLSR_MAX_TIME_STEPS]
+        elif seq_len < XLSR_MAX_TIME_STEPS:
+            padding = torch.zeros(XLSR_MAX_TIME_STEPS - seq_len, features.shape[1])
+            features = torch.cat([features, padding], dim=0)
+        padded_features.append(features)
+    
+    return torch.stack(padded_features, dim=0), torch.tensor(labels_list, dtype=torch.long)
+
+
 def create_dataloaders(
         data_csv: Path,
         batch_size: int = BATCH_SIZE,
@@ -158,7 +175,8 @@ def create_dataloaders(
         shuffle=True,  # Shuffle training set
         num_workers=num_workers,
         persistent_workers=True if num_workers > 0 else False,
-        pin_memory=True,  # Speed up GPU transfer
+        pin_memory=torch.cuda.is_available(),  # Speed up GPU transfer
+        collate_fn=collate_fn_xlsr if xlsr else None,  # Padding for XLSR features
     )
 
     return data_loader

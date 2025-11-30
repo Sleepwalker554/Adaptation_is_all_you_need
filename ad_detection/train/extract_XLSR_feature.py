@@ -103,10 +103,14 @@ def extract_features_from_csv(
             emb, layerresult = ssl_model.extract_feat(audio_tensor)
 
             # Average pooling features (XLSR_FEATURE_DIM = 1024)
-            layery, fullfeature = XLSR_Average_Pooling(layerresult)
+            # layery, fullfeature = XLSR_Average_Pooling(layerresult)
 
             # Save features
-            xlsr_features = layery[:, -1, :].cpu().detach()
+            # xlsr_features = layery[:, -1, :].cpu().detach()
+
+            last_layer = layerresult[-1][0]  # (Time, Batch=1, Feature=1024)
+            last_layer = last_layer.transpose(0, 1)  # (Batch=1, Time, Feature=1024)
+            xlsr_features = last_layer.squeeze(0).cpu().detach()  # (Time, 1024) -> (1024,)
             
             # Save features to file
             torch.save(xlsr_features, xlsr_path)

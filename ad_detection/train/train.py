@@ -1,17 +1,22 @@
 import torch
 import torch.nn.functional as F
 from pathlib import Path
+from tqdm import tqdm
 from config import LEARNING_RATE, MAX_EPOCHS, WEIGHT_DECAY, XLSR_DIM_HIDDEN, EGEMAPS_DIM_HIDDEN, XLSR_DROPOUT, EGEMAPS_DROPOUT, EGEMAPS_DIM_INPUT, XLSR_DIM_INPUT
 from model import ADModel
 
-def train_one_epoch(model, train_loader, optimizer, device):
+def train_one_epoch(model, train_loader, optimizer, device, epoch=None):
     """Train for one epoch"""
     model.train()
     total_loss = 0
     correct = 0
     total = 0
 
-    for features, labels in train_loader:
+    # Create progress bar for batches
+    desc = f"Epoch {epoch} - Training" if epoch is not None else "Training"
+    pbar = tqdm(train_loader, desc=desc, leave=False)
+    
+    for features, labels in pbar:
         features = features.to(device)
         labels = labels.to(device)
 
@@ -29,13 +34,18 @@ def train_one_epoch(model, train_loader, optimizer, device):
         predictions = torch.argmax(logits, dim=1)
         correct += (predictions == labels).sum().item()
         total += labels.size(0)
+        
+        # Update progress bar
+        current_loss = total_loss / (pbar.n + 1)
+        current_acc = correct / total
+        pbar.set_postfix({'loss': f'{current_loss:.4f}', 'acc': f'{current_acc:.4f}'})
 
     avg_loss = total_loss / len(train_loader)
     accuracy = correct / total
     return avg_loss, accuracy
 
 
-def validate(model, val_loader, device):
+def validate(model, val_loader, device, epoch=None):
     """Validate model and compute detailed metrics"""
     model.eval()
     total_loss = 0
@@ -53,8 +63,12 @@ def validate(model, val_loader, device):
     false_positives = 0
     false_negatives = 0
 
+    # Create progress bar for validation
+    desc = f"Epoch {epoch} - Validation" if epoch is not None else "Validation"
+    pbar = tqdm(val_loader, desc=desc, leave=False)
+
     with torch.no_grad():
-        for features, labels in val_loader:
+        for features, labels in pbar:
             features = features.to(device)
             labels = labels.to(device)
 
@@ -86,6 +100,11 @@ def validate(model, val_loader, device):
                     false_positives += 1
                 elif pred == 0 and label == 1:
                     false_negatives += 1
+            
+            # Update progress bar
+            current_loss = total_loss / (pbar.n + 1)
+            current_acc = correct / total
+            pbar.set_postfix({'loss': f'{current_loss:.4f}', 'acc': f'{current_acc:.4f}'})
 
     avg_loss = total_loss / len(val_loader)
     accuracy = correct / total
@@ -157,12 +176,12 @@ def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
     # Training loop
     for epoch in range(MAX_EPOCHS):
         # Train
-        train_loss, train_acc = train_one_epoch(model, train_loader, optimizer, device)
+        train_loss, train_acc = train_one_epoch(model, train_loader, optimizer, device, epoch=epoch+1)
         train_losses.append(train_loss)
         train_accs.append(train_acc)
 
         # Validate
-        val_loss, val_acc, control_acc, dementia_acc, f1 = validate(model, val_loader, device)
+        val_loss, val_acc, control_acc, dementia_acc, f1 = validate(model, val_loader, device, epoch=epoch+1)
         val_losses.append(val_loss)
         val_accs.append(val_acc)
         epochs_list.append(epoch)
