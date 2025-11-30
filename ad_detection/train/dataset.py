@@ -119,7 +119,7 @@ class FeatureDataset(Dataset):
         return self.session_ids[index]
 
 
-def collate_fn_xlsr(batch):
+def xlsr_pad_mask(batch):
     """Padding XLSR features to fixed length with attention mask"""
     features_list = [f for f, l in batch]
     labels_list = [l for f, l in batch]
@@ -187,7 +187,7 @@ def create_dataloaders(
         num_workers=num_workers,
         persistent_workers=True if num_workers > 0 else False,
         pin_memory=torch.cuda.is_available(),  # Speed up GPU transfer
-        collate_fn=collate_fn_xlsr if xlsr else None,  # Padding for XLSR features
+        collate_fn=xlsr_pad_mask if xlsr else None,  # Padding for XLSR features
     )
 
     return data_loader
