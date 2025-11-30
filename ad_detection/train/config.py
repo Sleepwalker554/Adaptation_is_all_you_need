@@ -19,8 +19,8 @@ EGEMAPS_DIM_INPUT = 25
 XLSR_DIM_INPUT = 1024               # XLSR feature dimension (output from XLSR-53 model)
 EGEMAPS_DIM_HIDDEN = 14             # eGeMaps Network Hidden dimension
 XLSR_DIM_HIDDEN = 28                # XLSR Network Hidden dimension
-XLSR_DROPOUT = 0.15                      # XLSR Dropout ratio
-EGEMAPS_DROPOUT = 0.2                      # eGeMaps Dropout ratio
+XLSR_DROPOUT = 0.2                  # XLSR Dropout ratio
+EGEMAPS_DROPOUT = 0.2               # eGeMaps Dropout ratio
 RANDOM_SEEDS = [21, 42, 84, 168, 336]
 
 # ====== eGeMAPS features extraction parameters ======
