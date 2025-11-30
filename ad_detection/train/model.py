@@ -208,7 +208,7 @@ class AD_XLSR_Model(nn.Module):
         
         self.down_proj5 = nn.Linear(64, 32)
         self.bn5 = nn.BatchNorm1d(32)
-        
+         
         self.dropout = nn.Dropout(dropout)
 
         # 3. Attention pooling + output layer
@@ -234,20 +234,20 @@ class AD_XLSR_Model(nn.Module):
         x = self.down_proj1(x)
         x = self.bn1(x.permute(0, 2, 1)).permute(0, 2, 1)
         x = F.relu(x)
-        # x = self.dropout1(x)
+        # x = self.dropout(x)
         
         # Layer 2: 512 → 256
         x = self.down_proj2(x)
         x = self.bn2(x.permute(0, 2, 1)).permute(0, 2, 1)
         x = F.relu(x)
-        # x = self.dropout2(x)
-        
+        # x = self.dropout(x)
+
         # Layer 3: 256 → 128
         x = self.down_proj3(x)
         x = self.bn3(x.permute(0, 2, 1)).permute(0, 2, 1)
         x = F.relu(x)
-        # x = self.dropout3(x)
-        
+        # x = self.dropout(x)
+
         # Layer 4: 128 → 64
         x = self.down_proj4(x)
         x = self.bn4(x.permute(0, 2, 1)).permute(0, 2, 1)
