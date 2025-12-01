@@ -186,6 +186,8 @@ def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
     best_metrics = {}
     patience = 10
     patience_counter = 0
+    best_epoch = 0
+    stopped_epoch = 0
 
     # Training loop
     for epoch in range(MAX_EPOCHS):
@@ -203,6 +205,7 @@ def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
         # Save best model
         if val_acc > best_val_acc:
             best_val_acc = val_acc
+            best_epoch = epoch + 1
             best_metrics = {
                 'val_acc': val_acc,
                 'val_loss': val_loss,
@@ -217,6 +220,7 @@ def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
 
         # Early stopping check
         if patience_counter >= patience:
+            stopped_epoch = epoch + 1
             break
 
     # Print final results
@@ -225,7 +229,8 @@ def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
           f"F1={best_metrics['f1_score']:.4f}, "
           f"Val Loss={best_metrics['val_loss']:.4f}\n"
           f"Control Acc={best_metrics['control_acc']*100:.2f}%, "
-          f"Dementia Acc={best_metrics['dementia_acc']*100:.2f}%")
+          f"Dementia Acc={best_metrics['dementia_acc']*100:.2f}%\n"
+          f"Early stop at: epoch {stopped_epoch if stopped_epoch > 0 else MAX_EPOCHS} (best epoch: {best_epoch})")
 
     # Return training history along with best metrics
     training_history = {
