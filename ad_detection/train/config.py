@@ -7,7 +7,7 @@ CONFIG_FILE = Path(__file__).resolve()
 PROJECT_ROOT = CONFIG_FILE.parent.parent
 
 # ====== Training parameters ======
-MAX_EPOCHS = 60              
+MAX_EPOCHS = 50              
 BATCH_SIZE = 32              
 LEARNING_RATE = 3e-3         #Best learning rate is 3e-3
 WARMUP_STEPS = 100
