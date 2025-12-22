@@ -13,22 +13,20 @@ class SSLModel(nn.Module):
             - True: Freeze all parameters, only extract features (no XLSR update)
             - False: Unfreeze parameters, allow fine-tuning (will update XLSR)
     """
-    def __init__(self, device, freeze_xlsr=False):
+    def __init__(self, device, freeze_xlsr=True):
         super(SSLModel, self).__init__()
         
-        # Always load from the pre-trained XLSR model
-        
         if not freeze_xlsr:
-            cp_path = '/Users/sleepwalker/Library/Mobile Documents/com~apple~CloudDocs/Code-In-iCloud/Adaptation_is_all_you_need/ad_detection/train/finetuned_xlsr.pth'
-            print("=========XLSR: Loading finetuned model=========")
+            print("XLSR:Using fine-tuned XLSR model")
+            cp_path = ''
         else:
-            cp_path = '/Users/sleepwalker/Library/Mobile Documents/com~apple~CloudDocs/Code-In-iCloud/Adaptation_is_all_you_need/ad_detection/train/xlsr2_300m.pt'
-            print("========XLSR: Loading pre-trained model for feature extraction (parameters frozen)=========")
+            print("XLSR:Using original XLSR model")
+            cp_path = '/root/autodl-tmp/data/xlsr2_300m.pt'
         
         model, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([cp_path])
         self.model = model[0].to(device)
         self.device = device
-        self.out_dim = XLSR_DIM_INPUT  # XLSR_FEATURE_DIM
+        self.out_dim = 1024 #XLSR_DIM_INPUT
         self.freeze_xlsr = freeze_xlsr
         
         self.model.eval()  # Use eval mode when frozen
@@ -75,9 +73,6 @@ class PoolAttFF(nn.Module):
     """
     Attention pooling module
 
-    Uses attention mechanism to pool variable-length sequences into fixed-length vectors.
-    This module only performs attention pooling, without output mapping.
-
     Args:
         dim_hidden: Hidden dimension of input features
         dropout: Dropout rate for attention network
@@ -103,15 +98,15 @@ class PoolAttFF(nn.Module):
         Returns:
             x_pooled: (batch_size, hidden_dim) - pooled features
         """
-        # Step 1: Compute attention scores
+        # Compute attention scores
         # x: (B, L, H) -> (B, L, 2H) -> (B, L, 1)
         att = self.linear2(self.dropout(self.activation(self.linear1(x))))
 
-        # Step 2: Transpose for masking and softmax
+        # Transpose for masking and softmax
         # (B, L, 1) -> (B, 1, L)
         att = att.transpose(2, 1)
 
-        # Step 3: Apply mask - set padding positions to -inf so they become 0 after softmax
+        # Apply mask - set padding positions to -inf so they become 0 after softmax
         if mask is not None:
             # (batch, seq_len) -> (batch, 1, seq_len)
             expanded_mask = mask.unsqueeze(1)
@@ -157,34 +152,34 @@ class AD_XLSR_Model(nn.Module):
         super().__init__()
         self.dropout = dropout
 
-        # 1. BatchNorm normalization
+        # BatchNorm normalization
         self.norm = nn.BatchNorm1d(1024)
 
-        # 2. Progressive 5-layer down projection: 1024 → 512 → 256 → 128 → 64 → 32
-        self.down_proj1 = nn.Linear(1024, 512)
+        # 1024 → 512 → 256 → 128 → 64 → 32
+        self.linear_layer1 = nn.Linear(1024, 512)
         self.bn1 = nn.BatchNorm1d(512)
 
-        self.down_proj2 = nn.Linear(512, 256)
+        self.linear_layer2 = nn.Linear(512, 256)
         self.bn2 = nn.BatchNorm1d(256)
 
-        self.down_proj3 = nn.Linear(256, 128)
+        self.linear_layer3 = nn.Linear(256, 128)
         self.bn3 = nn.BatchNorm1d(128)
 
-        self.down_proj4 = nn.Linear(128, 64)
+        self.linear_layer4 = nn.Linear(128, 64)
         self.bn4 = nn.BatchNorm1d(64)
 
-        self.down_proj5 = nn.Linear(64, 32)
+        self.linear_layer5 = nn.Linear(64, 32)
         self.bn5 = nn.BatchNorm1d(32)
 
         self.dropout = nn.Dropout(dropout)
 
-        # 3. Attention pooling (aggregate time dimension)
+        # Attention pooling
         self.pool_ad = PoolAttFF(
             dim_hidden=32,
             dropout=dropout)
 
-        # 4. Output mapping layer (32 → 2)
-        self.output_layer = nn.Linear(32, 2)  # Binary classification
+        # Output mapping layer (32 → 2)
+        self.output_layer = nn.Linear(32, 2)
     
     def forward(self, x: Tensor, mask: Tensor = None) -> Tensor:
         """
@@ -195,43 +190,41 @@ class AD_XLSR_Model(nn.Module):
         Returns:
             out: (batch_size, 2) - AD classification logits
         """
-        # 1. BatchNorm: (B, L, 1024) -> (B, 1024, L) -> normalize -> (B, L, 1024)
+        # BatchNorm: (B, L, 1024) -> (B, 1024, L) -> normalize -> (B, L, 1024)
         x = self.norm(x.permute(0, 2, 1)).permute(0, 2, 1)
 
-        # 2. Progressive down projection
         # Layer 1: 1024 → 512
-        x = self.down_proj1(x)
+        x = self.linear_layer1(x)
         x = self.bn1(x.permute(0, 2, 1)).permute(0, 2, 1)
         x = F.relu(x)
 
         # Layer 2: 512 → 256
-        x = self.down_proj2(x)
+        x = self.linear_layer2(x)
         x = self.bn2(x.permute(0, 2, 1)).permute(0, 2, 1)
         x = F.relu(x)
 
         # Layer 3: 256 → 128
-        x = self.down_proj3(x)
+        x = self.linear_layer3(x)
         x = self.bn3(x.permute(0, 2, 1)).permute(0, 2, 1)
         x = F.relu(x)
 
         # Layer 4: 128 → 64
-        x = self.down_proj4(x)
+        x = self.linear_layer4(x)
         x = self.bn4(x.permute(0, 2, 1)).permute(0, 2, 1)
         x = F.relu(x)
         x = self.dropout(x)
 
         # Layer 5: 64 → 32
-        x = self.down_proj5(x)
+        x = self.linear_layer5(x)
         x = self.bn5(x.permute(0, 2, 1)).permute(0, 2, 1)
         x = F.relu(x)
         x = self.dropout(x)
-        # x: (B, L, 32)
 
-        # 3. Attention pooling (aggregate time dimension with mask)
-        x_pooled = self.pool_ad(x, mask)  # (B, L, 32) -> (B, 32)
+        # Attention pooling
+        x_pooled = self.pool_ad(x, mask)
 
-        # 4. Output mapping layer
-        out = self.output_layer(x_pooled)  # (B, 32) -> (B, 2)
+        # Output mapping layer
+        out = self.output_layer(x_pooled)
 
         return out
 
@@ -257,22 +250,13 @@ class AD_EGE_Model(nn.Module):
         super().__init__()
         self.dim_input = dim_input
         self.dim_hidden = dim_hidden
-        self.dropout = dropout
-
-        #a = 64, b = 32 表现最好
-        a = 64
-        b = 32
+        self.dropout = nn.Dropout(dropout)
         
-
-        # Simple 2-layer MLP for feature extraction
-        self.fc1 = nn.Linear(25,64)
+        self.linear_layer1 = nn.Linear(25,64)
         self.norm1 = nn.BatchNorm1d(64)
         
-
-        self.fc2 = nn.Linear(64, 32)
+        self.linear_layer2 = nn.Linear(64, 32)
         self.norm2 = nn.BatchNorm1d(32)
-
-        self.dropout_layer = nn.Dropout(dropout)
 
         # Attention pooling (aggregate time dimension)
         self.pool_ad = PoolAttFF(dim_hidden=32, dropout=dropout)
@@ -289,22 +273,17 @@ class AD_EGE_Model(nn.Module):
         Returns:
             out: (batch_size, 2) - AD classification logits
         """
-        # Layer 1: 25 -> 128
-        x = self.fc1(x)  # (B, L, 128)
+        x = self.linear_layer1(x)
         x = self.norm1(x.permute(0, 2, 1)).permute(0, 2, 1)
         x = F.relu(x)
-        x = self.dropout_layer(x)
+        x = self.dropout(x)
 
-        # Layer 2: 128 -> 64
-        x = self.fc2(x)  # (B, L, 64)
+        x = self.linear_layer2(x)
         x = self.norm2(x.permute(0, 2, 1)).permute(0, 2, 1)
         x = F.relu(x)
-        x = self.dropout_layer(x)
+        x = self.dropout(x)
         
+        x_pooled = self.pool_ad(x, mask)
 
-        # Attention pooling (aggregate time dimension)
-        x_pooled = self.pool_ad(x, mask)  # (B, L, 64) -> (B, 64)
-
-        # Output mapping layer
-        out = self.output_layer(x_pooled)  # (B, 64) -> (B, 2)
+        out = self.output_layer(x_pooled)
         return out
