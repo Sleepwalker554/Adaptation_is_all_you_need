@@ -8,19 +8,17 @@ ad_detection/data/raw/*
 extract_patient_speech/Download
 
 # ad_detection specific rules
-ad_detection/train/train_notebook/XLSR/XLSR-fine_tuning.ipynb
-
 *.wav
 *.mp3
 
 # Model files
+ad_detection/models
 *.pt
 *.pth
 *.ckpt
 
-data/raw/*
 
-# logs
+# Logs and checkpoints
 ad_detection/train/train_notebook/XLSR/lightning_logs
 ad_detection/train/train_notebook/eGeMap/lightning_logs
 ad_detection/train/lightning_logs/
@@ -28,7 +26,6 @@ ad_detection/train/train_notebook/XLSR/__pycache__
 ad_detection/train/train_notebook/eGeMap/__pycache__
 ad_detection/train/__pycache__
 
-# Logs and checkpoints
 *.log
 logs/
 lightning_logs/
@@ -56,3 +53,5 @@ __pycache__/
 *~
 .DS_Store
 **/.DS_Store
+
+.claude

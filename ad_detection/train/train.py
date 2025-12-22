@@ -5,7 +5,7 @@ from tqdm import tqdm
 from config import LEARNING_RATE, MAX_EPOCHS, WEIGHT_DECAY, XLSR_DIM_HIDDEN, EGEMAPS_DIM_HIDDEN, XLSR_DROPOUT, EGEMAPS_DROPOUT, EGEMAPS_DIM_INPUT, XLSR_DIM_INPUT
 from model import AD_XLSR_Model, AD_EGE_Model
 
-def train_one_epoch(model, train_loader, optimizer, device, epoch=None):
+def train_one_epoch(model, train_loader, optimizer, device, epoch=None, class_weights=None):
     """Train for one epoch"""
     model.train()
     total_loss = 0
@@ -30,7 +30,7 @@ def train_one_epoch(model, train_loader, optimizer, device, epoch=None):
             labels = labels.to(device)
             logits = model(features)
         
-        loss = F.cross_entropy(logits, labels)
+        loss = F.cross_entropy(logits, labels, weight=class_weights)
 
         # Backward pass
         optimizer.zero_grad()
@@ -53,7 +53,7 @@ def train_one_epoch(model, train_loader, optimizer, device, epoch=None):
     return avg_loss, accuracy
 
 
-def validate(model, val_loader, device, epoch=None):
+def validate(model, val_loader, device, epoch=None, class_weights=None):
     """Validate model and compute detailed metrics"""
     model.eval()
     total_loss = 0
@@ -90,7 +90,7 @@ def validate(model, val_loader, device, epoch=None):
                 labels = labels.to(device)
                 logits = model(features)
             
-            loss = F.cross_entropy(logits, labels)
+            loss = F.cross_entropy(logits, labels, weight=class_weights)
             predictions = torch.argmax(logits, dim=1)
 
             # Overall statistics
@@ -137,7 +137,7 @@ def validate(model, val_loader, device, epoch=None):
     return avg_loss, accuracy, control_acc, dementia_acc, f1_score
 
 
-def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
+def train(seed, train_loader, val_loader, output_dir, device, xlsr=True, class_weight_control=1.0, class_weight_dementia=1.0):
     """
     Training pipeline
 
@@ -148,6 +148,8 @@ def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
         output_dir: Directory to save models
         device: Device to train on (cpu/cuda/mps)
         xlsr: Whether using XLSR features (True) or eGeMAPS features (False)
+        class_weight_control: Weight for Control class (0) in loss function
+        class_weight_dementia: Weight for Dementia class (1) in loss function
 
     Returns:
         seed: The seed used
@@ -158,6 +160,10 @@ def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
+    
+    # Create class weights tensor
+    class_weights = torch.tensor([class_weight_control, class_weight_dementia], 
+                                  dtype=torch.float32, device=device)
 
     # Create save directory
     seed_dir = Path(output_dir) / f"seed_{seed}"
@@ -167,9 +173,9 @@ def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
     if xlsr:
         model = AD_XLSR_Model(dropout=XLSR_DROPOUT).to(device)
     else:
-        model = AD_EGE_Model(dim_input=EGEMAPS_DIM_INPUT,
-                             dim_hidden=EGEMAPS_DIM_HIDDEN,
-                             dropout=EGEMAPS_DROPOUT).to(device) 
+        model = AD_EGE_Model(dim_input=25,
+                             dim_hidden=14,
+                             dropout=0.2).to(device) 
 
     # Create optimizer
     optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
@@ -192,12 +198,12 @@ def train(seed, train_loader, val_loader, output_dir, device, xlsr=True):
     # Training loop
     for epoch in range(MAX_EPOCHS):
         # Train
-        train_loss, train_acc = train_one_epoch(model, train_loader, optimizer, device, epoch=epoch+1)
+        train_loss, train_acc = train_one_epoch(model, train_loader, optimizer, device, epoch=epoch+1, class_weights=class_weights)
         train_losses.append(train_loss)
         train_accs.append(train_acc)
 
         # Validate
-        val_loss, val_acc, control_acc, dementia_acc, f1 = validate(model, val_loader, device, epoch=epoch+1)
+        val_loss, val_acc, control_acc, dementia_acc, f1 = validate(model, val_loader, device, epoch=epoch+1, class_weights=class_weights)
         val_losses.append(val_loss)
         val_accs.append(val_acc)
         epochs_list.append(epoch)

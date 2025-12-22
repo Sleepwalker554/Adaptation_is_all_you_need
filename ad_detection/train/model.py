@@ -16,12 +16,14 @@ class SSLModel(nn.Module):
     def __init__(self, device, freeze_xlsr=False):
         super(SSLModel, self).__init__()
         
+        # Always load from the pre-trained XLSR model
+        
         if not freeze_xlsr:
-            print("XLSR:Using fine-tuned XLSR model")
-            cp_path = ''
+            cp_path = '/Users/sleepwalker/Library/Mobile Documents/com~apple~CloudDocs/Code-In-iCloud/Adaptation_is_all_you_need/ad_detection/train/finetuned_xlsr.pth'
+            print("=========XLSR: Loading finetuned model=========")
         else:
-            print("XLSR:Using original XLSR model")
             cp_path = '/Users/sleepwalker/Library/Mobile Documents/com~apple~CloudDocs/Code-In-iCloud/Adaptation_is_all_you_need/ad_detection/train/xlsr2_300m.pt'
+            print("========XLSR: Loading pre-trained model for feature extraction (parameters frozen)=========")
         
         model, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([cp_path])
         self.model = model[0].to(device)
@@ -29,17 +31,10 @@ class SSLModel(nn.Module):
         self.out_dim = XLSR_DIM_INPUT  # XLSR_FEATURE_DIM
         self.freeze_xlsr = freeze_xlsr
         
-        # Control whether to freeze model based on freeze_xlsr parameter
-        if freeze_xlsr:
-            self.model.eval()  # Use eval mode when frozen
-            """Freeze all XLSR parameters (no fine-tuning)"""
-            for param in self.model.parameters():
-                param.requires_grad = False
-        else:
-            self.model.train()  # Use train mode for fine-tuning
-            """Unfreeze all XLSR parameters (allow fine-tuning)"""
-            for param in self.model.parameters():
-                param.requires_grad = True
+        self.model.eval()  # Use eval mode when frozen
+        """Freeze all XLSR parameters (no fine-tuning)"""
+        for param in self.model.parameters():
+            param.requires_grad = False
         
 
     def extract_feat(self, input_data):
@@ -75,39 +70,6 @@ class SSLModel(nn.Module):
         layerresult = model_output['layer_results']  # Features from all layers
 
         return embedding, layerresult
-
-# def XLSR_Average_Pooling(layerResult):
-#     """
-#     Average pooling for XLSR layer outputs.
-    
-#     For each layer, apply adaptive average pooling along the time dimension
-#     to get a fixed-length representation.
-    
-#     Args:
-#         layerResult: List of layer outputs, each with shape (Time, Batch, Feature)
-    
-#     Returns:
-#         layery: Pooled features from all layers, shape (Batch, num_layers, XLSR_FEATURE_DIM)
-#         fullfeature: Full features from all layers (concatenated)
-#     """
-#     poollayerResult = []
-#     fullf = []
-#     for layer in layerResult:
-#         #layer[0] = (Time=201, Batch=32, Feature=XLSR_FEATURE_DIM)
-#         layery = layer[0].permute(1, 2 ,0) #(Time, Batch, Feature=XLSR_FEATURE_DIM) —> (Batch, Feature=XLSR_FEATURE_DIM, Time)
-#         layery = F.adaptive_avg_pool1d(layery, 1) #(Batch,Feature=XLSR_FEATURE_DIM,Time=1)
-#         layery = layery.transpose(1, 2) # (B,F,1) → (B,1,F)
-#         poollayerResult.append(layery)
-
-#         x = layer[0].transpose(0, 1) # (T,B,F) → (B,T,F)
-#         x = x.view(x.size(0), -1,x.size(1), x.size(2))
-#         fullf.append(x)
-
-#     layery = torch.cat(poollayerResult, dim=1)
-#     fullfeature = torch.cat(fullf, dim=1)
-#     return layery, fullfeature
-############################################################
-
 
 class PoolAttFF(nn.Module):
     """
@@ -278,11 +240,11 @@ class AD_EGE_Model(nn.Module):
     """
     AD detection model specifically for eGeMAPS features (25-dim)
 
-    Architecture:
-        1. BatchNorm normalization
-        2. Single-layer down projection to hidden dimension
+    Simple and Effective Architecture:
+        1. Feature expansion layer
+        2. Two-layer MLP with dropout
         3. Attention pooling (aggregate time dimension)
-        4. Output mapping layer (14 → 2)
+        4. Output classification layer
 
     Input:
         - x: (batch_size, 10, 25) - eGeMAPS features
@@ -291,53 +253,58 @@ class AD_EGE_Model(nn.Module):
         - logits: (batch_size, 2) - Control and Dementia logits
     """
 
-    def __init__(self, dim_input=25, dim_hidden=14, dropout=0.2):
+    def __init__(self, dim_input=25, dim_hidden=14, dropout=0.3):
         super().__init__()
         self.dim_input = dim_input
         self.dim_hidden = dim_hidden
         self.dropout = dropout
 
-        # 1. BatchNorm normalization
-        self.norm = nn.BatchNorm1d(self.dim_input)
+        #a = 64, b = 32 表现最好
+        a = 64
+        b = 32
+        
 
-        # 2. Single-layer down projection
-        self.down_proj = nn.Linear(
-            in_features=self.dim_input,
-            out_features=self.dim_hidden,
-        )
-        self.down_proj_drop = nn.Dropout(self.dropout)
-        self.down_proj_act = nn.ReLU()
+        # Simple 2-layer MLP for feature extraction
+        self.fc1 = nn.Linear(25,64)
+        self.norm1 = nn.BatchNorm1d(64)
+        
 
-        # 3. Attention pooling (aggregate time dimension)
-        self.pool_ad = PoolAttFF(
-            dim_hidden=self.dim_hidden,
-            dropout=self.dropout)
+        self.fc2 = nn.Linear(64, 32)
+        self.norm2 = nn.BatchNorm1d(32)
 
-        # 4. Output mapping layer (14 → 2)
-        self.output_layer = nn.Linear(self.dim_hidden, 2)  # Binary classification
+        self.dropout_layer = nn.Dropout(dropout)
+
+        # Attention pooling (aggregate time dimension)
+        self.pool_ad = PoolAttFF(dim_hidden=32, dropout=dropout)
+
+        # Output mapping layer (64 → 2)
+        self.output_layer = nn.Linear(32, 2)  # Binary classification
     
     def forward(self, x: Tensor, mask: Tensor = None) -> Tensor:
         """
         Args:
             x: (batch_size, seq_len, 25) - eGeMAPS features
             mask: Not used for eGeMAPS (no padding needed)
-        
+
         Returns:
             out: (batch_size, 2) - AD classification logits
         """
-        # 1. BatchNorm: (B, L, C) -> (B, C, L) -> normalize -> (B, L, C)
-        x = self.norm(x.permute(0, 2, 1)).permute(0, 2, 1)
+        # Layer 1: 25 -> 128
+        x = self.fc1(x)  # (B, L, 128)
+        x = self.norm1(x.permute(0, 2, 1)).permute(0, 2, 1)
+        x = F.relu(x)
+        x = self.dropout_layer(x)
+
+        # Layer 2: 128 -> 64
+        x = self.fc2(x)  # (B, L, 64)
+        x = self.norm2(x.permute(0, 2, 1)).permute(0, 2, 1)
+        x = F.relu(x)
+        x = self.dropout_layer(x)
         
-        # 2. Down projection to hidden dimension
-        x = self.down_proj(x)
-        x = self.down_proj_act(x)
-        x = self.down_proj_drop(x)
-        # x: (B, 10, 14)
 
-        # 3. Attention pooling (aggregate time dimension)
-        x_pooled = self.pool_ad(x, mask)  # (B, 10, 14) -> (B, 14)
+        # Attention pooling (aggregate time dimension)
+        x_pooled = self.pool_ad(x, mask)  # (B, L, 64) -> (B, 64)
 
-        # 4. Output mapping layer
-        out = self.output_layer(x_pooled)  # (B, 14) -> (B, 2)
-
+        # Output mapping layer
+        out = self.output_layer(x_pooled)  # (B, 64) -> (B, 2)
         return out
