@@ -21,7 +21,7 @@ class SSLModel(nn.Module):
             cp_path = ''
         else:
             print("XLSR:Using original XLSR model")
-            cp_path = '/root/autodl-tmp/data/xlsr2_300m.pt'
+            cp_path = '/Users/sleepwalker/Library/Mobile Documents/com~apple~CloudDocs/Code-In-iCloud/Adaptation_is_all_you_need/ad_detection/train/xlsr2_300m.pt'
         
         model, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([cp_path])
         self.model = model[0].to(device)
