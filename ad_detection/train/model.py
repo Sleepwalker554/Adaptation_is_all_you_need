@@ -12,25 +12,41 @@ class SSLModel(nn.Module):
         freeze_xlsr: Whether to freeze XLSR parameters
             - True: Freeze all parameters, only extract features (no XLSR update)
             - False: Unfreeze parameters, allow fine-tuning (will update XLSR)
+        finetuned_model_path: Path to finetuned XLSR checkpoint (optional)
+            - If provided, loads finetuned weights after loading base model
+            - Should contain 'ssl_model_state_dict' key
     """
-    def __init__(self, device, freeze_xlsr=True):
+    def __init__(self, device, freeze_xlsr=True, finetuned_model_path=None):
         super(SSLModel, self).__init__()
-        
-        if not freeze_xlsr:
-            print("XLSR:Using fine-tuned XLSR model")
-            cp_path = ''
-        else:
-            print("XLSR:Using original XLSR model")
-            cp_path = '/Users/sleepwalker/Library/Mobile Documents/com~apple~CloudDocs/Code-In-iCloud/Adaptation_is_all_you_need/ad_detection/train/xlsr2_300m.pt'
-        
+
+        # Always load original XLSR first to get the model structure
+        print("XLSR: Loading base model structure")
+        cp_path = '/Users/sleepwalker/Library/Mobile Documents/com~apple~CloudDocs/Code-In-iCloud/Adaptation_is_all_you_need/ad_detection/train/xlsr2_300m.pt'
+
         model, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([cp_path])
         self.model = model[0].to(device)
         self.device = device
         self.out_dim = 1024 #XLSR_DIM_INPUT
         self.freeze_xlsr = freeze_xlsr
-        
-        self.model.eval()  # Use eval mode when frozen
-        """Freeze all XLSR parameters (no fine-tuning)"""
+
+        # Load finetuned weights if path provided
+        if finetuned_model_path is not None:
+            print(f"XLSR: Loading finetuned weights from {finetuned_model_path}")
+            checkpoint = torch.load(finetuned_model_path, map_location=device, weights_only=False)
+
+            # Load only the XLSR model weights (not the whole SSLModel wrapper)
+            if 'ssl_model_state_dict' in checkpoint:
+                self.load_state_dict(checkpoint['ssl_model_state_dict'])
+                print(f"XLSR: ✓ Loaded finetuned model from epoch {checkpoint.get('epoch', 'N/A')}")
+                if 'best_val_acc' in checkpoint:
+                    print(f"XLSR: ✓ Best validation accuracy: {checkpoint['best_val_acc']*100:.2f}%")
+            else:
+                raise KeyError("Checkpoint must contain 'ssl_model_state_dict' key")
+        else:
+            print("XLSR: Using original pretrained model")
+
+        # Set to eval mode and freeze parameters
+        self.model.eval()
         for param in self.model.parameters():
             param.requires_grad = False
         
