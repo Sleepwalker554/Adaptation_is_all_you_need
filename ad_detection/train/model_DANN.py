@@ -322,15 +322,15 @@ class AD_XLSR_Model_DANN(nn.Module):
 class AD_EGE_Model_DANN(nn.Module):
     """
     DANN version of AD eGeMAPS Model with domain classifier
-
-    Uses Baseline eGeMAPS architecture (25→64→32) as feature extractor for better classification performance
-
+    
+    Similar architecture to AD_XLSR_Model_DANN but for eGeMAPS features (25-dim)
+    
     Architecture:
-        Input (B, 10, 25) → Feature Extractor → Features (B, 10, 32)
+        Input (B, 10, 25) → Feature Extractor → Features (B, 10, 14)
                                                       ↓
                                                 Attention Pool
                                                       ↓
-                                              Pooled Features (B, 32)
+                                              Pooled Features (B, 14)
                                   ┌─────────────────┴─────────────────┐
                                   ↓                                   ↓
                           Class Classifier                   Gradient Reversal Layer
@@ -339,78 +339,77 @@ class AD_EGE_Model_DANN(nn.Module):
                                                                       ↓
                                                             Domain Prediction (B, 2)
     """
-
-    def __init__(self, dim_input=25, dim_hidden=32, dropout=0.3):
+    
+    def __init__(self, dim_input=25, dim_hidden=14, dropout=0.2):
         super().__init__()
         self.dim_input = dim_input
         self.dim_hidden = dim_hidden
         self.dropout = dropout
-
+        
         # ========== Feature Extractor (Shared) ==========
-        # Adopts Baseline AD_EGE_Model architecture: 25 → 64 → 32
-
-        # Layer 1: 25 → 64
-        self.linear_layer1 = nn.Linear(25, 64)
-        self.norm1 = nn.BatchNorm1d(64)
-
-        # Layer 2: 64 → 32
-        self.linear_layer2 = nn.Linear(64, 32)
-        self.norm2 = nn.BatchNorm1d(32)
-
-        self.dropout_layer = nn.Dropout(dropout)
-
+        # Same as original AD_EGE_Model
+        
+        self.norm = nn.BatchNorm1d(self.dim_input)
+        
+        # Single-layer projection: 25 → 14
+        self.down_proj = nn.Linear(
+            in_features=self.dim_input,
+            out_features=self.dim_hidden,
+        )
+        self.down_proj_drop = nn.Dropout(self.dropout)
+        self.down_proj_act = nn.ReLU()
+        
         # Attention pooling (aggregate time dimension)
-        self.pool_att = PoolAttFF(dim_hidden=32, dropout=dropout)
-
+        self.pool_att = PoolAttFF(
+            dim_hidden=self.dim_hidden,
+            dropout=self.dropout
+        )
+        
         # ========== Task-specific Heads ==========
-
+        
         # Class classifier (AD detection: Control vs Dementia)
-        self.class_classifier = nn.Linear(32, 2)
-
+        self.class_classifier = nn.Linear(self.dim_hidden, 2)
+        
         # Gradient Reversal Layer
         self.grl = GradientReversalLayer()
-
+        
         # Domain classifier (dataset discrimination: Source vs Target)
         self.domain_classifier = DomainClassifier(
-            input_dim=32,
-            hidden_dim=64,  # Increased from 32 to align with XLSR-DANN
+            input_dim=self.dim_hidden,
+            hidden_dim=32,
             dropout=dropout
         )
     
     def extract_features(self, x: Tensor) -> Tensor:
         """
         Extract features before pooling (shared feature extractor)
-
+        
         Args:
             x: (batch_size, seq_len, 25) - eGeMAPS features
-
+        
         Returns:
-            features: (batch_size, seq_len, 32) - extracted features
+            features: (batch_size, seq_len, 14) - extracted features
         """
-        # Layer 1: 25 → 64
-        x = self.linear_layer1(x)
-        x = self.norm1(x.permute(0, 2, 1)).permute(0, 2, 1)
-        x = F.relu(x)
-        x = self.dropout_layer(x)
-
-        # Layer 2: 64 → 32
-        x = self.linear_layer2(x)
-        x = self.norm2(x.permute(0, 2, 1)).permute(0, 2, 1)
-        x = F.relu(x)
-        x = self.dropout_layer(x)
-
-        return x  # (B, seq_len, 32)
+        # BatchNorm: (B, L, C) -> (B, C, L) -> normalize -> (B, L, C)
+        x = self.norm(x.permute(0, 2, 1)).permute(0, 2, 1)
+        
+        # Down projection to hidden dimension
+        x = self.down_proj(x)
+        x = self.down_proj_act(x)
+        x = self.down_proj_drop(x)
+        
+        return x  # (B, 10, 14)
     
     def forward(self, x: Tensor, mask: Tensor = None, alpha: float = 0.0, return_features: bool = False):
         """
         Forward pass with optional domain classification
-
+        
         Args:
             x: (batch_size, seq_len, 25) - eGeMAPS features
             mask: not used for eGeMAPS (no padding needed)
             alpha: gradient reversal strength (0 to 1)
             return_features: whether to return domain classification
-
+        
         Returns:
             if return_features=False:
                 class_logits: (batch_size, 2) - AD classification logits
@@ -419,17 +418,17 @@ class AD_EGE_Model_DANN(nn.Module):
                 domain_logits: (batch_size, 2) - domain classification logits
         """
         # Extract features (shared feature extractor)
-        features = self.extract_features(x)  # (B, seq_len, 32)
-
+        features = self.extract_features(x)  # (B, 10, 14)
+        
         # Attention pooling (aggregate time dimension)
-        pooled_features = self.pool_att(features, mask)  # (B, 32)
-
+        pooled_features = self.pool_att(features, mask)  # (B, 14)
+        
         # Class classification (AD detection)
         class_logits = self.class_classifier(pooled_features)  # (B, 2)
-
+        
         if return_features:
             # Domain classification with gradient reversal
-            reversed_features = self.grl(pooled_features, alpha)  # (B, 32), gradients reversed
+            reversed_features = self.grl(pooled_features, alpha)  # (B, 14), gradients reversed
             domain_logits = self.domain_classifier(reversed_features)  # (B, 2)
             return class_logits, domain_logits
         else:
